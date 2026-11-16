@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { mulberry32, generatePath, makeBoard, createGame, move, land, applyCard, nextTurn, ranking, drawCard, PATH_LEN, SIZES, estimateMinutes } from '../www/games/blabarsjakten/logic.js';
 import { DECKS } from '../www/games/blabarsjakten/cards.js';
+import { makeLandscape } from '../www/games/blabarsjakten/landscape.js';
 
 // Banan, alla storlekar: rätt längd, inom rutnätet, sammanhängande, korsar aldrig sig själv, rör inte sig själv.
 for (const { grid: GRID, len } of Object.values(SIZES)) for (let seed = 1; seed <= 150; seed++) {
@@ -132,5 +133,19 @@ g.players[1].place = 0;
 // Prispall: lika = delad plats
 g.players[0].baskets = 6;
 assert.deepEqual(ranking(g).map(r => [r.player.name, r.rank]), [['A', 1], ['C', 1], ['B', 3]]);
+
+// Landskapet: bäcken hänger ihop, broar bara på raka bitar tvärs över, sjön och hus aldrig på banan.
+for (const size of Object.keys(SIZES)) for (let seed = 1; seed <= 60; seed++) {
+  const b = makeBoard(mulberry32(seed), size);
+  const land = makeLandscape(b, mulberry32(seed + 1000));
+  const cells = land.river.cells;
+  cells.forEach((c, i) => i && assert.ok(Math.abs(c[0] - cells[i - 1][0]) + Math.abs(c[1] - cells[i - 1][1]) <= 2, 'bäcken hänger ihop'));
+  land.bridges.forEach(i => {
+    assert.ok(i > 0 && i < b.length - 1, 'ingen bro på start eller mål');
+    assert.ok(land.straight(i), 'bro bara på rak bit');
+  });
+  land.lake.forEach(k => assert.ok(!land.path.has(k), 'sjön ligger inte på banan'));
+  land.zone.forEach((_, k) => assert.ok(!land.path.has(k), 'zoner ligger inte på banan'));
+}
 
 console.log('OK');

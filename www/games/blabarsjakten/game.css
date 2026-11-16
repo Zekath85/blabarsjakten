@@ -359,10 +359,6 @@ body.tilt .piece .shadow { transform: translate(6px, 20px); }
 @keyframes dot { 0%, 80%, 100% { transform: translateY(0); opacity: .4; } 40% { transform: translateY(-8px); opacity: 1; } }
 
 /* ---------- Spelplanen ---------- */
-/* Stig av mjuk jord under banan. */
-.trail { position: absolute; left: 0; top: 0; pointer-events: none; overflow: visible; }
-.trail polyline { fill: none; stroke: rgba(120, 84, 40, .2); stroke-width: 104; stroke-linecap: round; stroke-linejoin: round; }
-body[data-season="winter"] .trail polyline { stroke: rgba(120, 150, 180, .18); }
 /* Specialrutor får kant i figurens färg. */
 .tile[style*="--rim"] .piece .top { stroke: var(--rim); stroke-width: 5; }
 /* Blåbärsruta: lika många små bär som korgar. */
@@ -448,3 +444,83 @@ body.calm .figures span, body.calm .recenter::before, body.calm .tile.lit .ico {
 #cardOverlay.golden .card3d { animation: cardIn .55s cubic-bezier(.2,.9,.3,1.2), shine 1.6s .6s ease-in-out infinite; }
 @keyframes shine { 50% { filter: brightness(1.15); } }
 body.calm #cardOverlay.golden .card3d { animation: cardIn .55s cubic-bezier(.2,.9,.3,1.2); }
+
+/* ---------- Landskapet (landscape.js) ---------- */
+/* Färger per årstid: åker, vatten, sand, skogs- och bymark. */
+body { --crop-bg: #b9d77a; --crop: #8fbf4e; --water: #5fb6e8; --water-deep: #3d8fc9; --sand: #e9d49a; --forest-ground: rgba(30, 80, 30, .22); --village-ground: rgba(170, 130, 80, .28); --gravel: #e8d7a8; --gravel-edge: #b89a62; }
+body[data-season="spring"] { --crop-bg: #c8e6a0; --crop: #9ccc65; }
+body[data-season="autumn"] { --crop-bg: #e9c46a; --crop: #d4a23c; --forest-ground: rgba(120, 60, 20, .22); }
+body[data-season="winter"] { --crop-bg: #eef5fb; --crop: #d6e6f2; --water: #cfe6f5; --water-deep: #a9cde6; --sand: #f3f8fc; --forest-ground: rgba(120, 150, 180, .15); --village-ground: rgba(150, 170, 190, .2); --gravel: #f1f5f8; --gravel-edge: #b7c6d3; }
+
+.land, .road { position: absolute; left: 0; top: 0; pointer-events: none; overflow: visible; }
+.land { overflow: hidden; border-radius: 24px; } /* bäcken slutar vid planens kant */
+.hill { fill: url(#hill); }
+.forest-ground { fill: var(--forest-ground); }
+.village-ground { fill: var(--village-ground); }
+.field { fill: url(#crop); stroke: rgba(80, 60, 20, .25); stroke-width: 2; }
+.crop-bg { fill: var(--crop-bg); } .crop-row { fill: var(--crop); }
+.fence { stroke: #8d5a2b; stroke-width: 3; stroke-linecap: round; }
+.post { fill: #6d4220; }
+.sand { fill: var(--sand); }
+.water { fill: var(--water); }
+.river-bank { fill: none; stroke: var(--sand); stroke-width: 70; stroke-linecap: round; stroke-linejoin: round; }
+.river { fill: none; stroke: var(--water); stroke-width: 48; stroke-linecap: round; stroke-linejoin: round; }
+.river-shine { fill: none; stroke: rgba(255, 255, 255, .45); stroke-width: 5; stroke-dasharray: 18 26; stroke-linecap: round; stroke-linejoin: round; }
+body[data-season="winter"] .river-shine { stroke: rgba(255, 255, 255, .9); stroke-dasharray: 40 20; }
+.sidepath { fill: none; stroke: var(--gravel); stroke-width: 22; stroke-linecap: round; stroke-linejoin: round; opacity: .9; }
+
+/* Grusväg med kant och stenar under pusselbitarna. */
+.road-edge { fill: none; stroke: var(--gravel-edge); stroke-width: 112; stroke-linecap: round; stroke-linejoin: round; opacity: .55; }
+.road-gravel { fill: none; stroke: var(--gravel); stroke-width: 100; stroke-linecap: round; stroke-linejoin: round; opacity: .8; }
+.pebble { fill: #b8ad9a; stroke: #8a7f6d; stroke-width: 1.5; }
+/* Bro där bäcken korsar vägen. */
+.bridge { fill: #a8763e; stroke: #5d3a18; stroke-width: 3; }
+.plank { stroke: rgba(60, 35, 10, .45); stroke-width: 2; }
+.rail { fill: #7b4a20; stroke: #4a2a10; stroke-width: 2; }
+.rail-post { fill: #5d3a18; }
+
+/* Start-stuga och mål-träd är lite större. Hus och kvarn gungar inte. */
+.deco.landmark { transform: translateY(-14px) scale(1.35); z-index: 1; }
+.sway.house, .sway.windmill, .sway.cottage, .sway.well, .sway.goalTree { animation: none; }
+.sway { position: relative; }
+.sails { position: absolute; left: 50%; top: 30%; width: 110%; height: 110%; margin: -55% 0 0 -55%; animation: spin 9s linear infinite; }
+.sails svg { width: 100%; height: 100%; }
+/* Rök från skorstenen. */
+.smoke { position: absolute; left: 66%; top: 14%; width: 0; height: 0; }
+.smoke b { position: absolute; width: 12px; height: 12px; margin: -6px; border-radius: 50%; background: rgba(255, 255, 255, .7); animation: smoke 4.5s ease-out infinite; }
+.smoke b:nth-child(2) { animation-delay: 1.5s; } .smoke b:nth-child(3) { animation-delay: 3s; }
+@keyframes smoke { 0% { transform: translate(0, 0) scale(.4); opacity: 0; } 20% { opacity: .9; } 100% { transform: translate(14px, -48px) scale(1.6); opacity: 0; } }
+/* Snö på taken bara på vintern. */
+.snowcap { display: none; }
+body[data-season="winter"] .snowcap { display: inline; }
+
+/* Djur och glitter på sjön. */
+.critter { position: absolute; width: 40px; height: 40px; pointer-events: none; }
+.critter svg { width: 100%; height: 100%; }
+.critter.duck { animation: duck 12s ease-in-out infinite; }
+@keyframes duck { 0%, 100% { transform: translate(0, 0); } 25% { transform: translate(14px, 4px) rotate(3deg); } 50% { transform: translate(24px, -2px) scaleX(-1); } 75% { transform: translate(8px, -6px) scaleX(-1); } }
+.critter.fish { opacity: 0; animation: fish 7s ease-in-out infinite; }
+@keyframes fish { 0%, 80%, 100% { opacity: 0; transform: translate(0, 10px) rotate(0); } 84% { opacity: 1; transform: translate(8px, -22px) rotate(-30deg); } 90% { opacity: 1; transform: translate(18px, -10px) rotate(40deg); } 94% { opacity: 0; transform: translate(22px, 8px) rotate(60deg); } }
+.glint { position: absolute; width: 14px; height: 4px; border-radius: 4px; background: rgba(255, 255, 255, .85); pointer-events: none; animation: glint 4s ease-in-out infinite; }
+@keyframes glint { 0%, 100% { opacity: 0; transform: scaleX(.4); } 50% { opacity: 1; transform: scaleX(1); } }
+body[data-season="winter"] .critter, body[data-season="winter"] .glint { display: none; }
+
+/* Molnskuggor och fåglar som glider över planen. */
+.clouds { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+.clouds i { position: absolute; width: 60%; height: 55%; border-radius: 50%; background: radial-gradient(ellipse, rgba(0, 20, 0, .14), transparent 68%); animation: cloud 70s linear infinite; }
+.clouds i:nth-child(1) { top: -5%; animation-delay: -10s; }
+.clouds i:nth-child(2) { top: 40%; animation-delay: -45s; animation-duration: 90s; }
+.clouds i:nth-child(3) { top: 15%; animation-delay: -70s; animation-duration: 110s; width: 45%; }
+@keyframes cloud { from { transform: translateX(-70%); } to { transform: translateX(240%); } }
+.birds { position: absolute; top: 18%; left: 0; width: 110px; opacity: .55; animation: birds 26s linear infinite; animation-delay: 4s; }
+.birds svg { width: 100%; display: block; }
+@keyframes birds { 0% { transform: translate(-150px, 40px); } 60% { transform: translate(110vw, -20px); } 100% { transform: translate(110vw, -20px); } }
+body[data-season="winter"] .birds { display: none; }
+
+/* 3D: hus, djur och mål-träd står upp som träden. */
+body.tilt .critter svg { transform-origin: 50% 90%; transform: rotateX(-42deg); }
+body.tilt .deco.landmark { transform-style: preserve-3d; }
+
+/* Lugnt läge: landskapet står stilla. */
+body.calm .clouds, body.calm .glint, body.calm .critter.fish, body.calm .smoke { display: none; }
+body.calm .sails, body.calm .critter.duck { animation: none; }

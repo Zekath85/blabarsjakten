@@ -1,6 +1,7 @@
 import * as L from './logic.js';
 import { FIGURES, DECKS, GOLDEN } from './cards.js';
 import { ART, puzzlePath, SEASONS } from './art.js';
+import { makeLandscape, renderLandscape } from './landscape.js';
 import { stop, playClip, sfx, settings } from '../../shared/audio.js';
 import { avatar, robot, OPTIONS, DEFAULT_LOOKS } from '../../shared/avatar.js';
 import { confirmQuit } from '../../shared/dialog.js';
@@ -144,22 +145,8 @@ function newBoard() {
   const G = board.grid;
   W = G * CELL;
   renderSizes();
-  const used = new Set(board.map(t => t.y * G + t.x));
-  const nearPath = (x, y) => [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => x + dx >= 0 && x + dx < G && used.has((y + dy) * G + x + dx));
-  let deco = '';
-  for (let y = 0; y < G; y++)
-    for (let x = 0; x < G; x++) {
-      if (used.has(y * G + x)) continue;
-      // Precis intill banan: bara små blommor ibland, så banan är lätt att se. Längre bort: skog.
-      const near = nearPath(x, y);
-      if (Math.random() > (near ? 0.12 : 0.5)) continue;
-      const art = near ? 'flower' : ['tree', 'tree', 'bush', 'flower'][Math.floor(Math.random() * 4)];
-      deco += `<div class="deco" data-kind="${art}" style="left:${x * CELL}px;top:${y * CELL}px">` +
-        `<i class="sway ${art}" style="animation-delay:${-Math.random() * 9}s;animation-duration:${7 + Math.random() * 5}s">${ART[art]}</i></div>`;
-    }
-  // Stig av mjuk jord under pusselbitarna, så banan hänger ihop.
-  const pts = board.map(t => `${t.x * CELL + CELL / 2},${t.y * CELL + CELL / 2}`).join(' ');
-  const trail = `<svg class="trail" width="${W}" height="${W}"><polyline points="${pts}"/></svg>`;
+  // Landskapet: äng, åker, skog, by, sjö, bäck med broar, grusväg, hus och djur.
+  const land = renderLandscape(makeLandscape(board), board, CELL);
   const shapes = board.map((t, i) => puzzlePath(dirTo(t, board[i + 1]), dirTo(t, board[i - 1])));
   const at = t => `left:${t.x * CELL}px;top:${t.y * CELL}px`;
   // Undre lager: skugga och tjock kant för alla bitar, så ingen kant hamnar ovanpå en annan bits ovansida.
@@ -172,7 +159,7 @@ function newBoard() {
     `${tileIcon(t)}</div>`).join('');
   const world = $('#world');
   world.style.width = world.style.height = W + 'px';
-  world.innerHTML = TILE_GRADIENT + deco + trail + bases + tiles + '<div id="pawns"></div>';
+  world.innerHTML = TILE_GRADIENT + land.land + land.road + land.deco + bases + tiles + '<div id="pawns"></div>';
   setSeason(null); // banvalet har neutral bakgrund
   $('#scores').innerHTML = '';
   $('#piles').innerHTML = '';
@@ -191,7 +178,10 @@ const TILE_GRADIENT = '<svg width="0" height="0" style="position:absolute"><defs
 function setSeason(key) {
   const S = SEASONS[key];
   document.body.dataset.season = key || '';
-  document.querySelectorAll('.deco .sway').forEach(d => (d.innerHTML = (S || ART)[d.parentNode.dataset.kind]));
+  document.querySelectorAll('.deco .sway').forEach(d => {
+    const kind = d.parentNode.dataset.kind;
+    if (['tree', 'bush', 'flower'].includes(kind)) d.innerHTML = (S || ART)[kind];
+  });
   $('#weather').innerHTML = S ? Array.from({ length: 16 }, () =>
     `<i style="left:${Math.random() * 100}%;animation-delay:${-Math.random() * 14}s;animation-duration:${9 + Math.random() * 7}s;--s:${0.6 + Math.random() * 0.8}"></i>`).join('') : '';
   $('#corners').innerHTML = S ? [0, 1, 2, 3].map(c => `<div class="corner c${c}">${S.bush}${S.extra}${S.flower}</div>`).join('') : '';
