@@ -284,3 +284,10 @@ body[data-season="winter"] .world { background-color: #eef5fb; }
 /* Högen kortet kom ifrån: lyser och växer ovanpå mörkret. */
 .pile.picked { position: fixed; z-index: 1; pointer-events: none; transform-origin: bottom left; animation: picked 1.4s ease-in-out infinite; }
 @keyframes picked { 0%, 100% { transform: scale(1.25); box-shadow: 0 0 0 4px #fff, 0 0 24px 8px var(--c); } 50% { transform: scale(1.32); box-shadow: 0 0 0 4px #fff, 0 0 36px 14px var(--c); } }
+
+/* Etikett längst ner på kortet: +2 korgar (grön), −1 korg (röd), Inget händer (grå). */
+.card-front .effect { align-self: center; margin: 0 0 18px; padding: 6px 18px; border-radius: 999px; font-size: clamp(16px, 2.6vh, 22px); font-weight: 900; color: #fff;
+  text-shadow: 0 1px 0 rgba(0,0,0,.3); box-shadow: inset 0 2px 0 rgba(255,255,255,.35), 0 3px 6px rgba(0,0,0,.25); }
+.card-front .effect.good { background: linear-gradient(#81c784, #388e3c); }
+.card-front .effect.bad { background: linear-gradient(#ef7a74, #c62828); }
+.card-front .effect.neutral { background: linear-gradient(#b0bec5, #78909c); }

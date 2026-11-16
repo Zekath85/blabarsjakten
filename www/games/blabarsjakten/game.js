@@ -370,6 +370,22 @@ function burst(n, colors) {
 }
 
 // ---------- Kort ----------
+// Kort sammanfattning längst ner på kortet: vad det betyder för dig, och om det är bra (grön) eller dåligt (röd).
+function effectLabel({ type, n }) {
+  const steg = k => `${Math.abs(k)} steg ${k > 0 ? 'framåt' : 'bakåt'}`;
+  switch (type) {
+    case 'gain': return [`+${korg(n)}`, 'good'];
+    case 'lose': return [`−${korg(n)}`, 'bad'];
+    case 'all': return [`Alla ${n > 0 ? '+' : '−'}${korg(Math.abs(n))}`, n > 0 ? 'good' : 'bad'];
+    case 'move': return [steg(n), n > 0 ? 'good' : 'bad'];
+    case 'again': return ['Slå igen!', 'good'];
+    case 'takeFromEach': return [`+${korg(n)} från alla`, 'good'];
+    case 'giveToPoorest': return [`−${korg(n)}`, 'bad'];
+    case 'richToPoor': return [`Den med mest ger ${korg(n)}`, 'neutral'];
+    default: return ['Inget händer', 'neutral'];
+  }
+}
+
 // Kortet flyger fram med baksidan upp. Man trycker på kortet för att vända det.
 async function showCard(deck) {
   setState('busy');
@@ -379,7 +395,9 @@ async function showCard(deck) {
   const ov = $('#cardOverlay');
   ov.style.setProperty('--c', f.color);
   $('#cardBack').innerHTML = ART[deck];
-  $('#cardFront').innerHTML = `<div class="head"><span>${ART[deck]}</span><b>${f.name}</b></div><p>${card.text}</p>`;
+  const [label, mood] = effectLabel(card.effect);
+  $('#cardFront').innerHTML = `<div class="head"><span>${ART[deck]}</span><b>${f.name}</b></div><p>${card.text}</p>` +
+    `<div class="effect ${mood}">${label}</div>`;
   $('#cardButtons').hidden = true;
   $('#tapHint').hidden = isBot();
   // Högen kortet kom ifrån lyser och växer nere till vänster (ritas ovanpå mörkret).
