@@ -1,11 +1,16 @@
 import * as L from './logic.js';
 import { FIGURES, DECKS } from './cards.js';
 import { ART, puzzlePath, SEASONS } from './art.js';
-import { speak, stop, playClip, sfx, settings } from '../../shared/audio.js';
+import { stop, playClip, sfx, settings } from '../../shared/audio.js';
 import { avatar, robot, OPTIONS, DEFAULT_LOOKS } from '../../shared/avatar.js';
 import { confirmQuit } from '../../shared/dialog.js';
+import { ICONS, medal, sizeIcon, fillIcons } from '../../shared/icons.js';
 
 // Inspelad röst för kortet (filer från "npm run voices").
+// Berättarens inspelade repliker (Sofie). Texten används bara om filen saknas.
+const LINE_TEXT = { turn: 'Din tur! Slå tärningen.', again: 'Slå igen!', tap: 'Tryck på kortet.', bot: 'Nu är det datorns tur.',
+  board: 'Här är spelplanen.', win: 'Grattis till vinnaren!', tie: 'Det blev lika!' };
+const say = (key, text = LINE_TEXT[key]) => playClip(`voice/line-${key}.mp3`, text, undefined, 'guide');
 const readCard = kind => playClip(`voice/${card.deck}-${DECKS[card.deck].indexOf(card)}.mp3`, card.text, FIGURES[card.deck].voice, kind);
 
 const $ = s => document.querySelector(s);
@@ -13,8 +18,7 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
 const esc = s => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 const CELL = 90;
 let W = L.GRID * CELL; // planens bredd i pixlar, beror på kartstorleken
-const NUM = ['ett', 'två', 'tre', 'fyra', 'fem', 'sex'];
-const MEDAL = ['🥇', '🥈', '🥉', '🏅'];
+const PLACE_WORD = ['Första', 'Andra', 'Tredje', 'Fjärde'];
 const OFFSET = [[-18, -14], [18, -14], [-18, 12], [18, 12]];
 const korg = n => `${n} ${n === 1 ? 'korg' : 'korgar'}`;
 
@@ -49,7 +53,7 @@ function renderSetup() {
     const id = p.bot ? 'bot' : i;
     return `<div class="name-row"><button class="avatar-btn" data-i="${id}" style="--c:${L.COLORS[i]}" ${p.bot ? 'disabled' : ''} aria-label="Ändra figur">${figure(p, L.COLORS[i], true)}</button>` +
       `<input value="${esc(p.name)}" data-i="${id}" maxlength="14" readonly aria-label="Namn på spelare ${i + 1}">` +
-      `<button class="pen" data-i="${id}" aria-label="Ändra namn">✏️</button></div>`;
+      `<button class="pen" data-i="${id}" aria-label="Ändra namn">${ICONS.pencil}</button></div>`;
   }).join('');
 }
 $('#counts').onclick = e => {
@@ -117,7 +121,7 @@ $('#toBoardBtn').onclick = () => {
   sfx.click();
   show('play');
   newBoard();
-  speak('Här är spelplanen. Vill du ha en ny bana, eller ska vi starta?');
+  say('board');
 };
 
 // ---------- Spelplanen ----------
@@ -128,7 +132,7 @@ function dirTo(a, b) {
 
 function tileIcon(t) {
   if (FIGURES[t.type]) return `<div class="ico fig" style="--c:${FIGURES[t.type].color}">${ART[t.type]}</div>`;
-  if (t.type === 'berry') return `<div class="ico">${ART.basket}</div><span class="val">${t.value}</span>`;
+  if (t.type === 'berry') return `<div class="ico">${ART.basket}</div><span class="berries">${'<i></i>'.repeat(t.value)}</span>`;
   if (t.type === 'start') return `<div class="ico disc">START</div>`;
   if (t.type === 'goal') return `<div class="ico disc">MÅL</div>`;
   return `<div class="ico leaf">${ART.leaf}</div>`;
@@ -140,13 +144,21 @@ function newBoard() {
   W = G * CELL;
   renderSizes();
   const used = new Set(board.map(t => t.y * G + t.x));
+  const nearPath = (x, y) => [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => x + dx >= 0 && x + dx < G && used.has((y + dy) * G + x + dx));
   let deco = '';
   for (let y = 0; y < G; y++)
-    for (let x = 0; x < G; x++)
-      if (!used.has(y * G + x) && Math.random() < 0.28) {
-        const art = ['tree', 'tree', 'bush', 'flower'][Math.floor(Math.random() * 4)];
-        deco += `<div class="deco" data-kind="${art}" style="left:${x * CELL}px;top:${y * CELL}px">${ART[art]}</div>`;
-      }
+    for (let x = 0; x < G; x++) {
+      if (used.has(y * G + x)) continue;
+      // Precis intill banan: bara små blommor ibland, så banan är lätt att se. Längre bort: skog.
+      const near = nearPath(x, y);
+      if (Math.random() > (near ? 0.12 : 0.5)) continue;
+      const art = near ? 'flower' : ['tree', 'tree', 'bush', 'flower'][Math.floor(Math.random() * 4)];
+      deco += `<div class="deco" data-kind="${art}" style="left:${x * CELL}px;top:${y * CELL}px">` +
+        `<i class="sway ${art}" style="animation-delay:${-Math.random() * 9}s;animation-duration:${7 + Math.random() * 5}s">${ART[art]}</i></div>`;
+    }
+  // Stig av mjuk jord under pusselbitarna, så banan hänger ihop.
+  const pts = board.map(t => `${t.x * CELL + CELL / 2},${t.y * CELL + CELL / 2}`).join(' ');
+  const trail = `<svg class="trail" width="${W}" height="${W}"><polyline points="${pts}"/></svg>`;
   const shapes = board.map((t, i) => puzzlePath(dirTo(t, board[i + 1]), dirTo(t, board[i - 1])));
   const at = t => `left:${t.x * CELL}px;top:${t.y * CELL}px`;
   // Undre lager: skugga och tjock kant för alla bitar, så ingen kant hamnar ovanpå en annan bits ovansida.
@@ -154,12 +166,12 @@ function newBoard() {
     `<div class="tile" style="${at(t)}"><svg class="piece base" viewBox="-20 -20 140 140">` +
     `<path class="shadow" d="${shapes[i]}"/><path class="side" d="${shapes[i]}"/></svg></div>`).join('');
   const tiles = board.map((t, i) =>
-    `<div class="tile t-${t.type}" id="tile${i}" style="${at(t)}">` +
+    `<div class="tile t-${t.type}" id="tile${i}" style="${at(t)}${FIGURES[t.type] ? `;--rim:${FIGURES[t.type].color}` : ''}">` +
     `<svg class="piece" viewBox="-20 -20 140 140"><path class="top" d="${shapes[i]}"/><path class="shine" d="${shapes[i]}"/></svg>` +
     `${tileIcon(t)}</div>`).join('');
   const world = $('#world');
   world.style.width = world.style.height = W + 'px';
-  world.innerHTML = TILE_GRADIENT + deco + bases + tiles + '<div id="pawns"></div>';
+  world.innerHTML = TILE_GRADIENT + deco + trail + bases + tiles + '<div id="pawns"></div>';
   setSeason(null); // banvalet har neutral bakgrund
   $('#scores').innerHTML = '';
   $('#piles').innerHTML = '';
@@ -178,7 +190,7 @@ const TILE_GRADIENT = '<svg width="0" height="0" style="position:absolute"><defs
 function setSeason(key) {
   const S = SEASONS[key];
   document.body.dataset.season = key || '';
-  document.querySelectorAll('.deco').forEach(d => (d.innerHTML = (S || ART)[d.dataset.kind]));
+  document.querySelectorAll('.deco .sway').forEach(d => (d.innerHTML = (S || ART)[d.parentNode.dataset.kind]));
   $('#weather').innerHTML = S ? Array.from({ length: 16 }, () =>
     `<i style="left:${Math.random() * 100}%;animation-delay:${-Math.random() * 14}s;animation-duration:${9 + Math.random() * 7}s;--s:${0.6 + Math.random() * 0.8}"></i>`).join('') : '';
   $('#corners').innerHTML = S ? [0, 1, 2, 3].map(c => `<div class="corner c${c}">${S.bush}${S.extra}${S.flower}</div>`).join('') : '';
@@ -247,7 +259,7 @@ $('#newBoardBtn').onclick = () => { sfx.pop(); newBoard(); };
 function renderSizes() {
   const players = lineup().length;
   $('#sizes').innerHTML = Object.entries(L.SIZES).map(([key, z]) =>
-    `<button class="size ${key === mapSize ? 'on' : ''}" data-size="${key}"><b>${z.name}</b><small>ca ${L.estimateMinutes(key, players)} min</small></button>`).join('');
+    `<button class="size ${key === mapSize ? 'on' : ''}" data-size="${key}" aria-label="${z.name} karta">${sizeIcon({ small: 2, medium: 3, large: 4 }[key])}<small>${ICONS.clock}${L.estimateMinutes(key, players)} min</small></button>`).join('');
 }
 $('#sizes').onclick = e => {
   const size = e.target.closest('.size')?.dataset.size;
@@ -277,6 +289,7 @@ function startGame() {
     `<button class="pile" data-deck="${k}" style="--c:${f.color}" aria-label="${f.kind}">${ART[k]}</button>`).join('');
   $('#previewActions').hidden = true;
   $('#actionBtn').hidden = false;
+  watchSpeed();
   startTurn();
 }
 
@@ -293,7 +306,7 @@ function renderScores() {
   $('#scores').innerHTML = game.players.map((p, i) =>
     `<div class="chip ${i === game.current && !game.over ? 'on' : ''} ${p.place ? 'done' : ''}" style="--c:${p.color}">` +
     `<span class="chip-face">${figure(p, p.color, true)}</span><b>${esc(p.name)}</b><span class="bk">${ART.basket}</span>` +
-    `<span class="num" id="num${i}">${p.baskets}</span>${p.place ? `<span>${MEDAL[p.place - 1]}</span>` : ''}</div>`).join('');
+    `<span class="num" id="num${i}">${p.baskets}</span>${p.place ? `<span class="chip-medal">${medal(p.place)}</span>` : ''}</div>`).join('');
   game.players.forEach((p, i) => {
     const diff = p.baskets - shown[i];
     if (!diff) return;
@@ -307,9 +320,26 @@ function renderScores() {
     f.style.top = r.bottom + 'px';
     document.body.append(f);
     setTimeout(() => f.remove(), 1500);
+    flyBaskets(i, diff, r);
     shown[i] = p.baskets;
   });
   document.querySelectorAll('.pawn').forEach((el, i) => el.classList.toggle('me', i === game.current && !game.over));
+}
+
+// Korgar flyger från figuren upp till poängen (plus), eller ramlar ur poängen (minus).
+function flyBaskets(i, diff, chip) {
+  const pawn = $(`#pawn${i}`)?.getBoundingClientRect();
+  if (!pawn || settings.get('calm')) return;
+  for (let k = 0; k < Math.min(Math.abs(diff), 5); k++) {
+    const b = document.createElement('div');
+    b.className = 'fly-basket ' + (diff > 0 ? 'in' : 'out');
+    b.innerHTML = ART.basket;
+    const [x0, y0] = diff > 0 ? [pawn.left + pawn.width / 2, pawn.top] : [chip.left + chip.width / 2, chip.bottom];
+    const [x1, y1] = diff > 0 ? [chip.left + chip.width / 2, chip.top + chip.height / 2] : [x0 + (k - 2) * 30, y0 + 160];
+    b.style.cssText = `left:${x0}px;top:${y0}px;--dx:${x1 - x0}px;--dy:${y1 - y0}px;animation-delay:${k * 0.12}s`;
+    document.body.append(b);
+    setTimeout(() => b.remove(), 1400 + k * 120);
+  }
 }
 
 function setState(s) {
@@ -317,29 +347,37 @@ function setState(s) {
   const btn = $('#actionBtn');
   btn.disabled = s === 'busy';
   btn.className = 'btn action' + (s === 'busy' ? '' : ' pulse');
-  btn.innerHTML = s === 'roll' ? `${diceIcon()} Slå tärningen!` : 'Vänta…';
+  btn.innerHTML = s === 'roll' ? `${ICONS.dice} Slå tärningen` : '<span class="wait-dots"><i></i><i></i><i></i></span>';
   // Datorns tur: knappen är grå och visar att datorn spelar.
   if (game && !game.over && me().bot) {
     btn.disabled = true;
     btn.className = 'btn action';
-    btn.innerHTML = `${robot(me().color, true)} ${esc(me().name)} spelar…`;
+    btn.innerHTML = `${robot(me().color, true)}<span class="wait-dots"><i></i><i></i><i></i></span>`;
   }
 }
 const isBot = () => game && me().bot;
 
 // Dags att slå: personen trycker själv, datorn slår efter en liten stund.
-async function readyToRoll(say) {
+async function readyToRoll(line) {
   setState('roll');
-  if (!isBot()) return speak(say);
+  if (!isBot()) return say(line);
   await wait(1100);
   roll();
 }
-const diceIcon = () => `<svg viewBox="0 0 40 40"><rect x="4" y="4" width="32" height="32" rx="8" fill="#fff" stroke="#4a2a00" stroke-width="3"/><circle cx="13" cy="13" r="3.5" fill="#4a2a00"/><circle cx="20" cy="20" r="3.5" fill="#4a2a00"/><circle cx="27" cy="27" r="3.5" fill="#4a2a00"/></svg>`;
 
-function startTurn() {
+async function startTurn() {
   renderScores();
   focusTile(me().pos);
-  readyToRoll(`Din tur, ${me().name}!`);
+  // Stort ansikte i mitten en kort stund: nu är det den här spelarens tur.
+  const b = $('#turnBanner');
+  b.style.setProperty('--c', me().color);
+  b.innerHTML = `<span>${figure(me(), me().color, true)}</span><b>${esc(me().name)}</b>`;
+  b.hidden = false;
+  b.style.animation = 'none'; void b.offsetWidth; b.style.animation = '';
+  sfx.turn(game.current);
+  setTimeout(() => (b.hidden = true), 1300);
+  if (isBot()) say('bot');
+  readyToRoll('turn');
 }
 
 $('#actionBtn').onclick = () => {
@@ -357,6 +395,7 @@ async function roll() {
 
 async function walk(steps) {
   const i = game.current;
+  let n = 0;
   for (const pos of L.move(game, steps)) {
     game.players[i].pos = pos; // flytta pjäsen ruta för ruta i bild
     placePawn(i);
@@ -364,19 +403,32 @@ async function walk(steps) {
     hop.classList.remove('go');
     void hop.offsetWidth; // starta om hopp-animationen
     hop.classList.add('go');
-    focusTile(pos);
-    sfx.hop();
+    focusTile(Math.min(pos + (steps > 0 ? 1 : 0), board.length - 1)); // titta lite framåt
+    sfx.hop(n);
+    countBubble(i, ++n);
     await wait(340);
   }
 }
 
+// Liten siffra som ploppar upp över figuren: 1, 2, 3 …
+function countBubble(i, n) {
+  const el = document.createElement('span');
+  el.className = 'count-bubble';
+  el.textContent = n;
+  $(`#pawn${i}`)?.append(el);
+  setTimeout(() => el.remove(), 700);
+}
+
 async function onLand() {
+  // Rutan trycks ner lite när figuren landar.
+  const tile = $(`#tile${me().pos}`);
+  if (tile) { tile.classList.remove('landed'); void tile.offsetWidth; tile.classList.add('landed'); }
   const r = L.land(game);
   renderScores();
   if (r.type === 'goal') return finish(r);
   if (r.type === 'berry') {
     sfx.good();
-    speak(`Blåbär! Du får ${korg(r.gained)}.`);
+    say(`berry${r.gained}`, `Blåbär! Du får ${korg(r.gained)}.`);
     await wait(1800);
     return endTurn();
   }
@@ -430,18 +482,19 @@ function burst(n, colors) {
 // ---------- Kort ----------
 // Kort sammanfattning längst ner på kortet: vad det betyder för dig, och om det är bra (grön) eller dåligt (röd).
 function effectLabel({ type, n }) {
-  const steg = k => `${Math.abs(k)} steg ${k > 0 ? 'framåt' : 'bakåt'}`;
+  // Bilder först (korg, fotsteg, tärning, grupp) så att man förstår utan att läsa. Siffran står bredvid.
+  const bk = ART.basket, all = ICONS.group;
   switch (type) {
-    case 'gain': return [`+${korg(n)}`, 'good'];
-    case 'lose': return [`−${korg(n)}`, 'bad'];
-    case 'all': return [`Alla ${n > 0 ? '+' : '−'}${korg(Math.abs(n))}`, n > 0 ? 'good' : 'bad'];
-    case 'move': return [steg(n), n > 0 ? 'good' : 'bad'];
-    case 'again': return ['Slå igen!', 'good'];
-    case 'takeFromEach': return [`+${korg(n)} från alla`, 'good'];
-    case 'giveToPoorest': return [`−${korg(n)}`, 'bad'];
-    case 'giveToEach': return [`−${korg(n)} till alla`, 'bad'];
-    case 'richToPoor': return [`Den med mest ger ${korg(n)}`, 'neutral'];
-    default: return ['Inget händer', 'neutral'];
+    case 'gain': return [`${bk}+${n}`, 'good'];
+    case 'lose': return [`${bk}−${n}`, 'bad'];
+    case 'all': return [`${all}${bk}${n > 0 ? '+' : '−'}${Math.abs(n)}`, n > 0 ? 'good' : 'bad'];
+    case 'move': return [`${n > 0 ? ICONS.stepsFwd : ICONS.stepsBack}${Math.abs(n)}`, n > 0 ? 'good' : 'bad'];
+    case 'again': return [`${ICONS.dice}+1`, 'good'];
+    case 'takeFromEach': return [`${bk}+${n} ${all}`, 'good'];
+    case 'giveToPoorest': return [`${bk}−${n}`, 'bad'];
+    case 'giveToEach': return [`${bk}−${n} ${all}`, 'bad'];
+    case 'richToPoor': return [`${all}${bk}${n}`, 'neutral'];
+    default: return [ICONS.calm, 'neutral'];
   }
 }
 
@@ -473,7 +526,9 @@ async function showCard(deck) {
   c3.classList.remove('flip');
   c3.classList.toggle('tappable', !isBot());
   ov.hidden = false;
-  c3.style.animation = 'none'; void c3.offsetWidth; c3.style.animation = ''; // starta om "kortet flyger in"
+  if (r?.width) { c3.style.setProperty('--fx', `${r.left + r.width / 2 - innerWidth / 2}px`); c3.style.setProperty('--fy', `${r.top + r.height / 2 - innerHeight / 2}px`); }
+  c3.style.animation = 'none'; void c3.offsetWidth; c3.style.animation = ''; // starta om "kortet flyger in" från högen
+  if (!isBot()) say('tap');
   sfx.card();
   if (isBot()) { await wait(1500); flipCard(); }
 }
@@ -486,18 +541,24 @@ async function flipCard() {
   $('#tapHint').hidden = true;
   sfx.pop();
   await wait(500);
-  if (!isBot()) { $('#cardButtons').hidden = false; readCard('cards'); return; }
+  if (!isBot()) { $('#cardButtons').hidden = false; readCard('cards').then(() => $('#cardOkBtn').classList.add('ready')); return; }
   // Datorn: läs upp kortet, vänta tills det är klart (minst en stund att läsa), tryck sedan Okej.
   await Promise.all([readCard('cards'), wait(2800)]);
   await wait(700);
   okCard();
 }
-$('#card3d').onclick = () => { if (!isBot()) flipCard(); };
+$('#card3d').onclick = () => {
+  if (isBot()) return;
+  if ($('#card3d').classList.contains('flip')) readCard('always'); // tryck igen: hör kortet en gång till
+  else flipCard();
+};
 
 $('#cardSpeakBtn').onclick = () => readCard('always');
 $('#cardOkBtn').onclick = () => okCard();
 async function okCard() {
   $('#cardOverlay').hidden = true;
+  $('#cardOkBtn').classList.remove('ready');
+  stop();
   $('#cardOverlay').style.background = '';
   document.querySelectorAll('.pile.picked').forEach(p => p.classList.remove('picked'));
   document.querySelectorAll('.tile.lit').forEach(t => t.classList.remove('lit'));
@@ -514,7 +575,7 @@ async function okCard() {
   }
   if (r.again) {
     await wait(300);
-    return readyToRoll('Slå igen!');
+    return readyToRoll('again');
   }
   await wait(900);
   endTurn();
@@ -525,16 +586,25 @@ async function finish(r) {
   renderScores();
   sfx.win();
   fireworks(3800);
-  // Bonusen syns stort i mitten och flyger sedan upp till spelarens poäng.
-  const pop = document.createElement('div');
-  pop.className = 'bonus-pop';
-  pop.innerHTML = `<span class="medal-big">${MEDAL[r.place - 1]}</span>${ART.basket}<b>+${r.bonus}</b>`;
-  const chip = document.querySelectorAll('.chip')[game.current]?.getBoundingClientRect();
-  if (chip) { pop.style.setProperty('--tx', `${chip.left + chip.width / 2 - innerWidth / 2}px`); pop.style.setProperty('--ty', `${chip.top + chip.height / 2 - innerHeight / 2}px`); }
-  document.body.append(pop);
-  setTimeout(() => pop.remove(), 2600);
-  speak(`Hurra! ${me().name} gick i mål som nummer ${NUM[r.place - 1]} och får ${korg(r.bonus)}!`);
-  await wait(4200);
+  // Ruta i mitten: placering, bonus och hur många korgar man har nu. Man stänger med Okej (datorn stänger själv).
+  const p = me();
+  $('#goalMedal').innerHTML = medal(r.place);
+  $('#goalFace').innerHTML = figure(p, p.color, true);
+  $('#goalFace').style.setProperty('--c', p.color);
+  $('#goalTitle').textContent = `${PLACE_WORD[r.place - 1]} plats i mål!`;
+  $('#goalBasket').innerHTML = ART.basket;
+  $('#goalBonus').textContent = `+${r.bonus}`;
+  $('#goalTotal').innerHTML = `${esc(p.name)} har nu ${ART.basket}<b>${p.baskets}</b>`;
+  $('#goalOkBtn').hidden = !!p.bot;
+  $('#goalPanel').hidden = false;
+  if (p.bot) await wait(3500);
+  else {
+    say(`goal${r.place}`, `Grattis! Du kom i mål på ${PLACE_WORD[r.place - 1].toLowerCase()} plats.`);
+    await new Promise(done => ($('#goalOkBtn').onclick = done));
+  }
+  stop();
+  sfx.click();
+  $('#goalPanel').hidden = true;
   endTurn();
 }
 
@@ -590,9 +660,7 @@ function showPodium() {
   fireworks(5000);
   sfx.win();
   const winners = list.filter(r => r.rank === 1).map(r => r.player.name);
-  speak(winners.length > 1
-    ? `Det blev lika! Grattis ${winners.join(' och ')}!`
-    : `Grattis ${winners[0]}! Du vann med ${korg(list[0].player.baskets)}!`);
+  say(winners.length > 1 ? 'tie' : 'win');
 }
 $('#againBtn').onclick = () => { $('#podium').hidden = true; renderSetup(); show('setup'); };
 $('#menuBtn').onclick = () => (location.href = '../../index.html');
@@ -603,7 +671,7 @@ $('#backBtn').onclick = async () => {
   location.href = '../../index.html';
 };
 const soundIcon = () => ($('#soundBtn').innerHTML = `<svg viewBox="0 0 40 40"><path d="M6 15 H13 L22 7 V33 L13 25 H6Z" fill="#fff" stroke="#fff" stroke-width="2" stroke-linejoin="round"/>${
-  ['cards', 'narrator', 'sfx'].some(settings.get)
+  ['cards', 'guide', 'sfx'].some(settings.get)
     ? '<path d="M27 14 Q31 20 27 26 M31 10 Q38 20 31 30" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round"/>'
     : '<path d="M28 15 L36 25 M36 15 L28 25" stroke="#ff8a80" stroke-width="3.5" stroke-linecap="round"/>'}</svg>`);
 $('#soundBtn').onclick = () => {
@@ -635,4 +703,20 @@ applyTilt();
 $('#closeRulesBtn').onclick = () => { $('#rules').hidden = true; stop(); };
 $('#readRulesBtn').onclick = () => playClip('voice/rules.mp3', $('#rulesText').innerText, undefined, 'always');
 
+// Lugnt läge: färre rörelser (väder, strålar, gungande träd). Slås på av sig självt om plattan är långsam.
+const applyCalm = () => document.body.classList.toggle('calm', !!settings.get('calm'));
+settings.onChange(key => key === 'calm' && applyCalm());
+applyCalm();
+function watchSpeed() {
+  try { if (settings.get('calm') || localStorage.getItem('bbj-calm-auto')) return; } catch { return; }
+  let frames = 0; const t0 = performance.now();
+  const tick = t => {
+    frames++;
+    if (t - t0 < 3000) return requestAnimationFrame(tick);
+    if (frames / 3 < 30) { try { localStorage.setItem('bbj-calm-auto', '1'); } catch {} settings.set('calm', true); }
+  };
+  requestAnimationFrame(tick);
+}
+
+fillIcons();
 renderSetup();

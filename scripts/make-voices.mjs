@@ -49,6 +49,23 @@ const html = readFileSync('www/games/blabarsjakten/index.html', 'utf8');
 const rules = html.split('id="rulesText">')[1].split('</div>')[0].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
 await say(rules, 'rules', VOICE.rules);
 
+// Berättarens repliker i spelet (Sofie). Namn kan inte spelas in, så figuren visas på skärmen i stället.
+const PLACE = ['första', 'andra', 'tredje', 'fjärde'], BONUS = ['fem blåbärskorgar', 'tre blåbärskorgar', 'två blåbärskorgar', 'en blåbärskorg'];
+const LINES = {
+  turn: 'Din tur! Slå tärningen.',
+  again: 'Slå igen!',
+  tap: 'Tryck på kortet.',
+  berry1: 'Blåbär! Du får en korg.',
+  berry2: 'Blåbär! Du får två korgar.',
+  berry3: 'Blåbär! Du får tre korgar.',
+  bot: 'Nu är det datorns tur.',
+  board: 'Här är spelplanen. Tryck på starta när ni är redo.',
+  win: 'Grattis till vinnaren! Bra spelat allihop!',
+  tie: 'Det blev lika! Bra spelat allihop!',
+  ...Object.fromEntries(PLACE.map((p, i) => [`goal${i + 1}`, `Grattis! Du kom i mål på ${p} plats. Du får ${BONUS[i]} i bonus.`])),
+};
+for (const [key, text] of Object.entries(LINES)) await say(text, `line-${key}`, [SOFIE, { rate: '-4%' }]);
+
 // Gemensamma repliker för alla spel (shared/dialog.js m.fl.).
 mkdirSync('www/shared/voice', { recursive: true });
 await say('Vill du avbryta spelet och gå till menyn?', 'quit', VOICE.rules, 'www/shared/voice');

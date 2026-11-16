@@ -36,6 +36,7 @@
   box-shadow: inset 0 1px 0 rgba(255,255,255,.5), 0 0 0 3px rgba(255,255,255,.25), 0 0 24px var(--c), 0 8px 18px rgba(0,0,0,.4); }
 .chip.on .num { color: #fff; text-shadow: 0 2px 0 rgba(0,0,0,.4); }
 .chip.done { opacity: .85; }
+.chip:not(.on) { opacity: .72; } /* den som har tur syns mest */
 .num.up { animation: numUp .7s; } .num.down { animation: numDown .7s; }
 @keyframes numUp { 30% { transform: scale(1.8); color: #b2ff59; } }
 @keyframes numDown { 30% { transform: scale(1.8) rotate(-10deg); color: #ff5252; } }
@@ -90,7 +91,7 @@ body[data-season="winter"] .world { background-color: #eef5fb; }
 .corner.c2 { left: -6px; bottom: -20px; } .corner.c3 { right: -6px; bottom: -20px; flex-direction: row-reverse; }
 @media (max-height: 640px) { .corner svg { width: 80px; height: 80px; } .corner svg:nth-child(2) { width: 60px; height: 60px; } .corner svg:nth-child(3) { width: 46px; height: 46px; } }
 
-.season-banner { position: absolute; left: 50%; top: 40%; z-index: 6; transform: translate(-50%, -50%); white-space: nowrap; pointer-events: none;
+.season-banner { position: absolute; left: 50%; top: 16%; z-index: 6; transform: translate(-50%, -50%); white-space: nowrap; pointer-events: none;
   font-size: clamp(36px, 7vw, 64px); font-weight: 900; color: #fff; text-shadow: 0 4px 0 rgba(0,0,0,.35), 0 0 30px rgba(255,255,255,.6); animation: banner 2.6s ease-out forwards; }
 @keyframes banner { 0% { opacity: 0; transform: translate(-50%, -50%) scale(.5); } 15% { opacity: 1; transform: translate(-50%, -50%) scale(1.1); } 25%, 75% { transform: translate(-50%, -50%) scale(1); opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -80%); } }
 
@@ -106,7 +107,6 @@ body[data-season="winter"] .world { background-color: #eef5fb; }
 .tile .fig { background: radial-gradient(circle at 35% 30%, rgba(255,255,255,.45), transparent 55%), var(--c); border: 3px solid #fff8e0; box-shadow: 0 4px 8px rgba(0,0,0,.3), inset 0 -3px 6px rgba(0,0,0,.2); }
 .tile .fig svg { width: 86%; height: 86%; }
 .tile .leaf { inset: 28%; opacity: .55; }
-.tile .val { position: absolute; right: 2px; bottom: 0; font-size: 22px; font-weight: 900; color: #3d4fb8; text-shadow: 0 0 3px #fff, 0 0 3px #fff; }
 .tile .disc { border: 4px solid #fff; font-weight: 900; font-size: 15px; color: #fff; text-shadow: 0 1px 0 rgba(0,0,0,.4); }
 .t-start .disc { background: #43a047; } .t-goal .disc { background: #e53935; }
 .tile.lit .ico { animation: lit 1s ease-in-out infinite; }
@@ -114,10 +114,8 @@ body[data-season="winter"] .world { background-color: #eef5fb; }
 
 .pawn { position: absolute; left: 0; top: 0; width: 56px; height: 68px; transition: transform .28s ease-in-out; z-index: 2; }
 .pawn.me { z-index: 3; }
-/* Glöd i spelarens färg under den som har tur: syns tydligt var man står. */
-.pawn.me::before { content: ""; position: absolute; left: -26px; right: -26px; bottom: -22px; height: 44px; border-radius: 50%; pointer-events: none;
-  background: radial-gradient(ellipse, rgba(255,255,255,.95) 0 18%, var(--c) 40%, transparent 70%); animation: glowPulse 1.4s ease-in-out infinite; }
-@keyframes glowPulse { 0%, 100% { transform: scale(.9); opacity: .75; } 50% { transform: scale(1.15); opacity: 1; } }
+.pawn.me::before { content: ""; position: absolute; left: -6px; right: -6px; bottom: -10px; height: 22px; border-radius: 50%; border: 4px solid #fff; animation: ring 1.2s ease-in-out infinite; }
+@keyframes ring { 50% { transform: scale(1.25); opacity: .4; } }
 .pawn .hop { position: relative; }
 .pawn .hop svg { width: 56px; height: 68px; display: block; overflow: visible; }
 .pawn .hop.go { animation: hop .3s ease-out; }
@@ -143,7 +141,7 @@ body[data-season="winter"] .world { background-color: #eef5fb; }
 @keyframes pulse { 50% { transform: scale(1.06); } }
 
 /* ---------- Tärning ---------- */
-.dice-zone { position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none; background: radial-gradient(circle, rgba(0,0,0,.35), transparent 60%); }
+.dice-zone { position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none; background: radial-gradient(circle, rgba(0,0,0,.5), rgba(0,0,0,.2) 70%); }
 .dice-wrap { perspective: 700px; grid-area: 1 / 1; }
 .cube { position: relative; width: 120px; height: 120px; transform-style: preserve-3d; transition: transform 1.2s cubic-bezier(.15,.8,.25,1.08); }
 .face { position: absolute; inset: 0; border-radius: 22px; background: linear-gradient(145deg, #fff, #e9e2d0); border: 3px solid #d2c6a6; display: grid; grid-template: repeat(3, 1fr) / repeat(3, 1fr); padding: 14px; }
@@ -164,7 +162,7 @@ body[data-season="winter"] .world { background-color: #eef5fb; }
   -webkit-mask: radial-gradient(circle, #000 20%, transparent 65%); mask: radial-gradient(circle, #000 20%, transparent 65%); }
 @keyframes spin { to { transform: rotate(360deg); } }
 .card3d { position: relative; width: min(78vw, 340px, 46vh); aspect-ratio: 5 / 7; perspective: 1200px; animation: cardIn .55s cubic-bezier(.2,.9,.3,1.2); }
-@keyframes cardIn { from { transform: translateY(70vh) rotate(-12deg) scale(.4); } }
+@keyframes cardIn { from { transform: translate(var(--fx, 0px), var(--fy, 70vh)) rotate(-12deg) scale(.2); opacity: .6; } }
 .card-inner { position: absolute; inset: 0; transform-style: preserve-3d; transition: transform .7s cubic-bezier(.3,.7,.3,1.2); }
 .card3d.flip .card-inner { transform: rotateY(180deg); }
 .card-face { position: absolute; inset: 0; border-radius: 22px; backface-visibility: hidden; -webkit-backface-visibility: hidden; border: 8px solid; border-color: #ffe08a #e0a02a #b8781c #f4c04a; box-shadow: 0 20px 40px rgba(0,0,0,.6); overflow: hidden; }
@@ -236,7 +234,7 @@ body[data-season="winter"] .world { background-color: #eef5fb; }
 /* ---------- Figurer ---------- */
 .avatar-btn { flex: none; width: 64px; height: 64px; border-radius: 50%; background: var(--c); border: 4px solid #fff; overflow: hidden; position: relative; box-shadow: 0 4px 0 rgba(0,0,0,.25); }
 .avatar-btn svg { width: 100%; height: 100%; display: block; }
-.avatar-btn::after { content: "🎨"; position: absolute; right: -2px; bottom: -2px; font-size: 20px; }
+.avatar-btn::after { content: ""; position: absolute; right: -3px; bottom: -3px; width: 24px; height: 24px; border-radius: 50%; background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Ccircle cx='12' cy='18' r='4' fill='%23e53935'/%3E%3Ccircle cx='19' cy='10' r='4' fill='%23fbc02d'/%3E%3Ccircle cx='28' cy='12' r='4' fill='%2343a047'/%3E%3Ccircle cx='14' cy='27' r='4' fill='%231e88e5'/%3E%3C/svg%3E") center / 80% no-repeat; box-shadow: 0 2px 4px rgba(0,0,0,.3); }
 .look-panel { width: min(900px, 100%); display: grid; grid-template-columns: 220px 1fr; gap: 10px 22px; align-items: center; }
 .look-preview { grid-row: span 2; background: radial-gradient(circle, #fff 0 40%, #f3e2b8 70%); border-radius: 24px; padding: 10px; }
 .look-preview svg { width: 100%; display: block; animation: bob 2.4s ease-in-out infinite; }
@@ -255,9 +253,7 @@ body[data-season="winter"] .world { background-color: #eef5fb; }
 .chip-face svg { width: 100%; height: 100%; display: block; }
 .pawn .tag { position: absolute; left: 50%; top: 100%; transform: translateX(-50%); margin-top: 2px; white-space: nowrap; background: var(--c); color: #fff; font-size: 14px; font-weight: 800; padding: 2px 9px; border-radius: 999px; border: 2px solid #fff; text-shadow: 0 1px 0 rgba(0,0,0,.4); box-shadow: 0 2px 4px rgba(0,0,0,.3); }
 .pawn.crowded:not(.me) .tag { display: none; } /* flera på samma ruta: visa bara namnet på den som spelar */
-/* Alla figurer står på en liten fläck i sin egen färg, så man ser var varje spelare är. */
-.pawn .shadow { position: absolute; left: 0; right: 0; bottom: -8px; height: 20px; border-radius: 50%;
-  background: radial-gradient(ellipse, var(--c) 0 35%, color-mix(in srgb, var(--c) 40%, transparent) 55%, transparent 72%); }
+.pawn .shadow { position: absolute; left: 8px; right: 8px; bottom: -4px; height: 12px; border-radius: 50%; background: rgba(0,0,0,.3); }
 
 .toggle { display: flex; align-items: center; gap: 16px; font-size: 24px; font-weight: 700; padding: 12px 0; }
 .toggle input { display: none; }
@@ -284,7 +280,7 @@ body[data-season="winter"] .world { background-color: #eef5fb; }
 .card3d.tappable .card-inner { animation: wiggle 1.8s ease-in-out .6s infinite; }
 @keyframes wiggle { 0%, 70%, 100% { transform: rotate(0) scale(1); } 76% { transform: rotate(-3deg) scale(1.03); } 84% { transform: rotate(3deg) scale(1.03); } 92% { transform: rotate(-1deg); } }
 .card3d.tappable .card-back { box-shadow: 0 0 0 4px rgba(255,255,255,.6), 0 0 40px 10px var(--c), 0 20px 40px rgba(0,0,0,.6); }
-.tap-hint { position: relative; font-size: 28px; font-weight: 900; color: #fff; text-shadow: 0 3px 0 rgba(0,0,0,.4); animation: pulse 1.2s ease-in-out infinite; }
+.tap-hint { position: relative; display: flex; align-items: center; gap: 8px; font-size: 28px; font-weight: 900; color: #fff; text-shadow: 0 3px 0 rgba(0,0,0,.4); animation: pulse 1.2s ease-in-out infinite; }
 /* Högen kortet kom ifrån: lyser och växer ovanpå mörkret. */
 .pile.picked { position: relative; z-index: 1; transform-origin: bottom left; animation: picked 1.4s ease-in-out infinite; }
 @keyframes picked { 0%, 100% { transform: scale(1.25); box-shadow: 0 0 0 4px #fff, 0 0 24px 8px var(--c); } 50% { transform: scale(1.32); box-shadow: 0 0 0 4px #fff, 0 0 36px 14px var(--c); } }
@@ -300,8 +296,9 @@ body[data-season="winter"] .world { background-color: #eef5fb; }
 .actions { flex-wrap: wrap; justify-content: flex-end; align-items: center; width: 100%; }
 .sizes { display: flex; gap: 6px; padding: 5px; margin-right: auto; border-radius: 22px; background: rgba(0,0,0,.35); border: 2px solid rgba(255,214,120,.45); }
 .size { min-width: 100px; padding: 8px 14px; border-radius: 16px; display: flex; flex-direction: column; align-items: center; line-height: 1.1; color: #fff; }
-.size b { font-size: 22px; }
-.size small { font-size: 15px; opacity: .8; }
+.size > svg { width: 34px; height: 34px; }
+.size small { display: flex; align-items: center; gap: 3px; font-size: 15px; font-weight: 800; opacity: .9; }
+.size small svg { width: 16px; height: 16px; }
 .size.on { background: linear-gradient(#ffe08a, #f4a923); color: #4a2a00; box-shadow: inset 0 2px 0 rgba(255,255,255,.6), 0 4px 0 var(--gold-dark); }
 
 /* Rävens kort: mörkrött, pulserande och skakande. */
@@ -338,15 +335,100 @@ body.tilt .piece .shadow { transform: translate(6px, 20px); }
 .recenter:active { transform: scale(.92); }
 @keyframes recenterIn { from { transform: scale(0); } }
 
-/* Målbonus: stort +5 i mitten som flyger upp till poängen. */
-.bonus-pop { position: fixed; left: 50%; top: 50%; z-index: 65; display: flex; align-items: center; gap: 10px; padding: 14px 30px 14px 18px; pointer-events: none;
-  border-radius: 999px; background: linear-gradient(#fff8e1, #ffe08a); border: 5px solid #fff; box-shadow: 0 0 40px 10px rgba(255, 213, 79, .7), 0 12px 30px rgba(0,0,0,.4);
-  animation: bonusPop 2.6s cubic-bezier(.3,.7,.3,1) forwards; }
-.bonus-pop svg { width: 70px; height: 70px; }
-.bonus-pop b { font-size: 64px; font-weight: 900; color: #2e7d32; text-shadow: 0 3px 0 #fff; }
-.bonus-pop .medal-big { font-size: 56px; }
-@keyframes bonusPop {
-  0% { transform: translate(-50%, -50%) scale(.2); opacity: 0; }
-  15% { transform: translate(-50%, -50%) scale(1.15); opacity: 1; }
-  25%, 60% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
-  100% { transform: translate(calc(-50% + var(--tx, 0px)), calc(-50% + var(--ty, -300px))) scale(.25); opacity: 0; } }
+/* ---------- Ikoner i knappar ---------- */
+.btn svg.icon { width: 1.1em; height: 1.1em; flex: none; }
+.btn.icon-right { flex-direction: row-reverse; }
+.btn.round { width: 72px; padding: 0; }
+.btn.round svg.icon { width: 34px; height: 34px; }
+.pen svg { width: 28px; height: 28px; color: #6b4a2b; }
+.tap-hint svg { width: 34px; height: 34px; }
+.chip-medal svg { width: 30px; height: 30px; display: block; }
+.btn.action svg.icon { width: 50px; height: 50px; color: #4a2a00; }
+/* Okej lyser när kortet är uppläst. */
+#cardOkBtn.ready { animation: pulse 1.1s ease-in-out infinite; box-shadow: 0 7px 0 #2e7d32, 0 0 0 6px rgba(178,255,89,.5), 0 12px 24px rgba(0,0,0,.35); }
+
+/* Kortets etikett med bilder. */
+.card-front .effect { display: inline-flex; align-items: center; gap: 4px; font-size: clamp(20px, 3vh, 26px); }
+.card-front .effect svg { width: 1.5em; height: 1.5em; }
+.card-front .effect .icon { color: #fff; }
+
+/* Väntan (och datorns tur): tre prickar som tänker. */
+.wait-dots { display: inline-flex; gap: 8px; }
+.wait-dots i { width: 12px; height: 12px; border-radius: 50%; background: currentColor; animation: dot 1.2s ease-in-out infinite; }
+.wait-dots i:nth-child(2) { animation-delay: .2s; } .wait-dots i:nth-child(3) { animation-delay: .4s; }
+@keyframes dot { 0%, 80%, 100% { transform: translateY(0); opacity: .4; } 40% { transform: translateY(-8px); opacity: 1; } }
+
+/* ---------- Spelplanen ---------- */
+/* Stig av mjuk jord under banan. */
+.trail { position: absolute; left: 0; top: 0; pointer-events: none; overflow: visible; }
+.trail polyline { fill: none; stroke: rgba(120, 84, 40, .2); stroke-width: 104; stroke-linecap: round; stroke-linejoin: round; }
+body[data-season="winter"] .trail polyline { stroke: rgba(120, 150, 180, .18); }
+/* Specialrutor får kant i figurens färg. */
+.tile[style*="--rim"] .piece .top { stroke: var(--rim); stroke-width: 5; }
+/* Blåbärsruta: lika många små bär som korgar. */
+.tile .berries { position: absolute; left: 0; right: 0; bottom: 4px; display: flex; justify-content: center; gap: 4px; }
+.tile .berries i { width: 13px; height: 13px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #8fa3ff, #3d4fb8 60%); border: 2px solid #fff; box-shadow: 0 1px 2px rgba(0,0,0,.3); }
+/* Rutan trycks ner när figuren landar. */
+.tile.landed .piece, .tile.landed .ico { animation: squash .35s ease-out; }
+@keyframes squash { 40% { transform: scale(.92, .88) translateY(3px); } 70% { transform: scale(1.03); } }
+
+/* Miljön lever: träd gungar, buskar andas och blommor nickar lite då och då. */
+.sway { display: block; width: 100%; height: 100%; transform-origin: 50% 92%; animation: sway 9s ease-in-out infinite; }
+.sway svg { width: 100%; height: 100%; display: block; }
+.sway.bush { animation-name: breathe; }
+.sway.flower { animation-name: nod; }
+@keyframes sway { 0%, 62%, 100% { transform: rotate(0); } 70% { transform: rotate(4deg); } 80% { transform: rotate(-3deg); } 90% { transform: rotate(1.5deg); } }
+@keyframes breathe { 0%, 60%, 100% { transform: scale(1); } 75% { transform: scale(1.06, .95); } }
+@keyframes nod { 0%, 55%, 100% { transform: rotate(0) translateY(0); } 65% { transform: rotate(-8deg) translateY(-3px); } 80% { transform: rotate(6deg); } }
+body.tilt .sway { transform-style: preserve-3d; }
+body.tilt .deco .sway svg { transform-origin: 50% 90%; transform: rotateX(-42deg); }
+body.tilt .deco svg { transform: none; }
+
+/* Figurerna andas lite när de står still. */
+.pawn .hop { animation: idle 3.2s ease-in-out infinite; }
+.pawn .hop.go { animation: hop .3s ease-out; }
+@keyframes idle { 50% { transform: translateY(-2px) scale(1.02, .98); } }
+
+/* Siffra över figuren för varje steg: 1, 2, 3 … */
+.count-bubble { position: absolute; left: 50%; top: -30px; z-index: 4; width: 34px; height: 34px; margin-left: -17px; border-radius: 50%; display: grid; place-items: center;
+  font-size: 20px; font-weight: 900; color: #4a2a00; background: linear-gradient(#fff8e1, #ffd54f); border: 3px solid #fff; box-shadow: 0 3px 6px rgba(0,0,0,.3); animation: bubble .7s ease-out forwards; }
+@keyframes bubble { 0% { transform: scale(.3); opacity: 0; } 30% { transform: scale(1.15); opacity: 1; } 100% { transform: translateY(-26px); opacity: 0; } }
+
+/* Korgar som flyger till poängen eller ramlar bort. */
+.fly-basket { position: fixed; z-index: 66; width: 40px; height: 40px; margin: -20px; pointer-events: none; animation: flyIn 1s cubic-bezier(.5,0,.3,1) backwards; }
+.fly-basket svg { width: 100%; height: 100%; }
+.fly-basket.out { animation-name: flyOut; animation-timing-function: ease-in; }
+@keyframes flyIn { 0% { transform: translate(0, 0) scale(.4); opacity: 0; } 20% { transform: translate(0, -30px) scale(1.1); opacity: 1; } 100% { transform: translate(var(--dx), var(--dy)) scale(.6); opacity: .2; } }
+@keyframes flyOut { 0% { transform: translate(0, 0) scale(.8); opacity: 1; } 100% { transform: translate(var(--dx), var(--dy)) rotate(40deg) scale(.6); opacity: 0; } }
+
+/* Tur-start: spelarens ansikte stort i mitten en kort stund. */
+.turn-banner { position: absolute; left: 50%; top: 42%; z-index: 7; display: flex; flex-direction: column; align-items: center; gap: 6px; pointer-events: none;
+  transform: translate(-50%, -50%); animation: turnIn 1.3s ease-out forwards; }
+.turn-banner span { width: 120px; height: 120px; border-radius: 50%; overflow: hidden; background: #fff; border: 6px solid var(--c);
+  box-shadow: 0 0 0 4px #fff, 0 0 40px 8px var(--c), 0 10px 24px rgba(0,0,0,.4); }
+.turn-banner span svg { width: 100%; height: 100%; display: block; }
+.turn-banner b { padding: 4px 18px; border-radius: 999px; background: var(--c); color: #fff; font-size: 24px; text-shadow: 0 2px 0 rgba(0,0,0,.3); border: 3px solid #fff; }
+@keyframes turnIn { 0% { transform: translate(-50%, -50%) scale(.3); opacity: 0; } 20% { transform: translate(-50%, -50%) scale(1.08); opacity: 1; } 70% { transform: translate(-50%, -50%) scale(1); opacity: 1; } 100% { transform: translate(-50%, -80%) scale(.8); opacity: 0; } }
+
+/* ---------- I mål ---------- */
+.goal-overlay { background: radial-gradient(circle at 50% 40%, rgba(255, 213, 79, .35), rgba(8, 14, 11, .85) 65%); z-index: 45; }
+.goal-card { position: relative; width: min(440px, 100%); padding: 70px 28px 26px; text-align: center; border-radius: 30px; color: var(--ink);
+  background: radial-gradient(circle at 50% 0, #fffaf0, var(--parchment) 60%); border: 6px solid var(--gold-2);
+  box-shadow: 0 0 0 3px rgba(0,0,0,.3), 0 0 60px 10px rgba(255, 213, 79, .45), 0 24px 50px rgba(0,0,0,.6); animation: dialogPop .45s cubic-bezier(.2,.9,.3,1.3); }
+.goal-medal { position: absolute; left: 50%; top: -70px; width: 120px; height: 120px; margin-left: -60px; animation: medalSwing 2.4s ease-in-out infinite; transform-origin: 50% 0; }
+.goal-medal svg { width: 100%; height: 100%; filter: drop-shadow(0 6px 8px rgba(0,0,0,.35)); }
+@keyframes medalSwing { 50% { transform: rotate(-6deg); } }
+.goal-face { width: 92px; height: 92px; margin: 0 auto 6px; border-radius: 50%; overflow: hidden; background: #fff; border: 5px solid var(--c); }
+.goal-face svg { width: 100%; height: 100%; display: block; }
+.goal-card h2 { margin: 0 0 10px; font-size: 32px; }
+.goal-bonus { display: inline-flex; align-items: center; gap: 6px; padding: 6px 22px 6px 12px; border-radius: 999px; background: linear-gradient(#81c784, #388e3c); border: 4px solid #fff; box-shadow: 0 6px 14px rgba(0,0,0,.25); animation: pulse 1.4s ease-in-out infinite; }
+.goal-bonus span svg { width: 58px; height: 58px; display: block; }
+.goal-bonus b { font-size: 48px; font-weight: 900; color: #fff; text-shadow: 0 3px 0 rgba(0,0,0,.25); }
+.goal-total { display: flex; align-items: center; justify-content: center; gap: 6px; margin: 14px 0 18px; font-size: 22px; font-weight: 700; }
+.goal-total svg { width: 34px; height: 34px; }
+.goal-total b { font-size: 28px; }
+
+/* ---------- Lugnt läge: inga ständiga rörelser ---------- */
+body.calm .weather, body.calm .rays, body.calm .pod-rays, body.calm .confetti { display: none; }
+body.calm .sway, body.calm .pawn .hop:not(.go), body.calm .btn.action.pulse, body.calm .btn.action.pulse::after,
+body.calm .figures span, body.calm .recenter::before, body.calm .tile.lit .ico { animation: none; }

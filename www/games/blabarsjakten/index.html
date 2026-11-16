@@ -29,7 +29,7 @@
       <h2>Hur många spelare?</h2>
       <div class="counts" id="counts"></div>
       <div class="names" id="names"></div>
-      <button class="btn green" id="toBoardBtn">Välj bana ▶</button>
+      <button class="btn green icon-right" id="toBoardBtn" data-icon="play">Välj bana</button>
     </div>
   </section>
 
@@ -47,6 +47,7 @@
         </div>
         <div class="hint" id="hint" hidden></div>
         <div class="season-banner" id="seasonBanner" hidden></div>
+        <div class="turn-banner" id="turnBanner" hidden></div>
         <button class="recenter" id="recenterBtn" hidden aria-label="Tillbaka till min figur"></button>
       </div>
       <div id="corners"></div>
@@ -55,8 +56,8 @@
       <div class="piles" id="piles"></div>
       <div class="actions" id="previewActions">
         <div class="sizes" id="sizes" aria-label="Kartans storlek"></div>
-        <button class="btn blue" id="newBoardBtn">🔄 Ny bana</button>
-        <button class="btn green" id="startBtn">Starta! ▶</button>
+        <button class="btn blue" id="newBoardBtn" data-icon="refresh">Ny bana</button>
+        <button class="btn green icon-right" id="startBtn" data-icon="play">Starta</button>
       </div>
       <button class="btn action" id="actionBtn" hidden></button>
     </footer>
@@ -71,10 +72,22 @@
         <div class="card-face card-front" id="cardFront"></div>
       </div>
     </div>
-    <div class="tap-hint" id="tapHint" hidden>👆 Tryck på kortet!</div>
+    <div class="tap-hint" id="tapHint" data-icon="hand" hidden>Tryck på kortet</div>
     <div class="card-buttons" id="cardButtons" hidden>
-      <button class="btn blue" id="cardSpeakBtn" aria-label="Läs igen">🔊</button>
-      <button class="btn green" id="cardOkBtn">Okej!</button>
+      <button class="btn blue round" id="cardSpeakBtn" data-icon="speaker" aria-label="Läs igen"></button>
+      <button class="btn green" id="cardOkBtn" data-icon="check">Okej</button>
+    </div>
+  </div>
+
+  <!-- I mål: placering och bonus -->
+  <div class="overlay goal-overlay" id="goalPanel" hidden>
+    <div class="goal-card">
+      <div class="goal-medal" id="goalMedal"></div>
+      <div class="goal-face" id="goalFace"></div>
+      <h2 id="goalTitle"></h2>
+      <div class="goal-bonus"><span id="goalBasket"></span><b id="goalBonus"></b></div>
+      <p class="goal-total" id="goalTotal"></p>
+      <button class="btn green" id="goalOkBtn" data-icon="check">Okej</button>
     </div>
   </div>
 
@@ -90,8 +103,8 @@
     <h1 class="title">Prispallen</h1>
     <div class="podium" id="podiumList"></div>
     <div class="row">
-      <button class="btn green" id="againBtn">🔄 Nytt spel</button>
-      <button class="btn blue" id="menuBtn">🏠 Till menyn</button>
+      <button class="btn green" id="againBtn" data-icon="refresh">Nytt spel</button>
+      <button class="btn blue" id="menuBtn" data-icon="home">Till menyn</button>
     </div>
   </div>
 
@@ -108,7 +121,7 @@
         <p>Du behöver inte slå exakt för att gå i mål. Först i mål får 5 korgar, tvåan 3, trean 2 och fyran 1. Den som är i mål är säker, inga kort tar eller ger korgar längre.</p>
       </div>
       <div class="row">
-        <button class="btn blue" id="readRulesBtn">🔊 Läs upp</button>
+        <button class="btn blue" id="readRulesBtn" data-icon="speaker">Läs upp</button>
         <button class="btn green" id="closeRulesBtn">Stäng</button>
       </div>
     </div>
@@ -126,10 +139,12 @@
   <!-- Ljud -->
   <div class="overlay" id="soundPanel" hidden>
     <div class="panel">
-      <h2>Ljud</h2>
+      <h2>Inställningar</h2>
       <label class="toggle"><input type="checkbox" data-pref="cards"><span></span>Läs upp korten</label>
-      <label class="toggle"><input type="checkbox" data-pref="narrator"><span></span>Berättarröst (din tur, tärningen…)</label>
+      <label class="toggle"><input type="checkbox" data-pref="guide"><span></span>Berättaren (din tur, blåbär, mål)</label>
+      <label class="toggle"><input type="checkbox" data-pref="slow"><span></span>Lugnare tal</label>
       <label class="toggle"><input type="checkbox" data-pref="sfx"><span></span>Ljudeffekter</label>
+      <label class="toggle"><input type="checkbox" data-pref="calm"><span></span>Lugnt läge (färre rörelser, bra för äldre plattor)</label>
       <div class="row"><button class="btn green" id="closeSoundBtn">Klar</button></div>
     </div>
   </div>
