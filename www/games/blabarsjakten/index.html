@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="sv">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+  <title>Blåbärsjakten</title>
+  <link rel="stylesheet" href="../../shared/style.css">
+  <link rel="manifest" href="../../manifest.webmanifest">
+  <link rel="icon" href="../../icons/icon-192.png">
+  <meta name="theme-color" content="#15241d">
+  <script type="module" src="../../shared/pwa.js"></script>
+  <link rel="stylesheet" href="game.css">
+</head>
+<body>
+  <button class="icon-btn" id="backBtn" style="left:12px" aria-label="Till menyn">
+    <svg viewBox="0 0 40 40"><path d="M24 6 L10 20 L24 34" fill="none" stroke="#4a2a00" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </button>
+  <button class="icon-btn" id="soundBtn" style="right:12px" aria-label="Ljud">🔊</button>
+  <button class="icon-btn" id="rulesBtn" style="right:96px" aria-label="Regler">📜</button>
+
+  <!-- Välj spelare -->
+  <section class="screen" id="setup">
+    <div class="setup-inner">
+      <h1 class="title">Blåbärsjakten</h1>
+      <div class="figures" id="figures"></div>
+      <h2>Hur många spelare?</h2>
+      <div class="counts" id="counts"></div>
+      <div class="names" id="names"></div>
+      <button class="btn green" id="toBoardBtn">Välj bana ▶</button>
+    </div>
+  </section>
+
+  <!-- Spelplanen (visning av bana och själva spelet) -->
+  <section class="screen" id="play" hidden>
+    <div class="scores" id="scores"></div>
+    <div class="viewport" id="viewport">
+      <div class="world" id="world"></div>
+      <div class="dice-zone" id="diceZone" hidden>
+        <div class="dice-wrap"><div class="cube" id="cube"></div></div>
+        <div class="dice-num" id="diceNum"></div>
+        <div class="sparks" id="sparks"></div>
+      </div>
+      <div class="hint" id="hint" hidden></div>
+    </div>
+    <footer class="bar">
+      <div class="piles" id="piles"></div>
+      <div class="actions" id="previewActions">
+        <button class="btn blue" id="newBoardBtn">🔄 Ny bana</button>
+        <button class="btn green" id="startBtn">Starta! ▶</button>
+      </div>
+      <button class="btn action" id="actionBtn" hidden></button>
+    </footer>
+  </section>
+
+  <!-- Kort -->
+  <div class="overlay" id="cardOverlay" hidden>
+    <div class="rays"></div>
+    <div class="card3d" id="card3d">
+      <div class="card-inner">
+        <div class="card-face card-back" id="cardBack"></div>
+        <div class="card-face card-front" id="cardFront"></div>
+      </div>
+    </div>
+    <div class="card-buttons" id="cardButtons" hidden>
+      <button class="btn blue" id="cardSpeakBtn" aria-label="Läs igen">🔊</button>
+      <button class="btn green" id="cardOkBtn">Okej!</button>
+    </div>
+  </div>
+
+  <!-- Prispall -->
+  <div class="overlay" id="podium" hidden>
+    <h1 class="title">Prispallen</h1>
+    <div class="podium" id="podiumList"></div>
+    <div class="row">
+      <button class="btn green" id="againBtn">🔄 Nytt spel</button>
+      <button class="btn blue" id="menuBtn">🏠 Till menyn</button>
+    </div>
+  </div>
+
+  <!-- Regler -->
+  <div class="overlay" id="rules" hidden>
+    <div class="panel">
+      <h2>Så spelar man</h2>
+      <div id="rulesText">
+        <p>Alla börjar med 8 blåbärskorgar. Den som har flest korgar när alla har gått i mål vinner.</p>
+        <p>Slå tärningen och hoppa lika många steg på pusselvägen.</p>
+        <p>Landar du på ett löv händer ingenting.</p>
+        <p>Landar du på en blåbärskorg får du så många korgar som det står.</p>
+        <p>Landar du på en figur drar du ett kort från dens hög. Räven Rask är busig och tar korgar. Ugglan Ulla är snäll och ger korgar. Ekorren Kvick är snabb och flyttar dig. Igelkotten Pigg är klok och delar rättvist.</p>
+        <p>Du behöver inte slå exakt för att gå i mål. Först i mål får 5 korgar, tvåan 3, trean 2 och fyran 1.</p>
+      </div>
+      <div class="row">
+        <button class="btn blue" id="readRulesBtn">🔊 Läs upp</button>
+        <button class="btn green" id="closeRulesBtn">Stäng</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Figurskapare -->
+  <div class="overlay" id="lookPanel" hidden>
+    <div class="panel look-panel">
+      <div class="look-preview" id="lookPreview"></div>
+      <div class="look-rows" id="lookRows"></div>
+      <button class="btn green look-done" id="lookDoneBtn">Klar!</button>
+    </div>
+  </div>
+
+  <!-- Ljud -->
+  <div class="overlay" id="soundPanel" hidden>
+    <div class="panel">
+      <h2>Ljud</h2>
+      <label class="toggle"><input type="checkbox" data-pref="cards"><span></span>Läs upp korten</label>
+      <label class="toggle"><input type="checkbox" data-pref="narrator"><span></span>Berättarröst (din tur, tärningen…)</label>
+      <label class="toggle"><input type="checkbox" data-pref="sfx"><span></span>Ljudeffekter</label>
+      <div class="row"><button class="btn green" id="closeSoundBtn">Klar</button></div>
+    </div>
+  </div>
+
+  <canvas id="fx" hidden></canvas>
+  <script type="module" src="game.js"></script>
+</body>
+</html>

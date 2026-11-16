@@ -1,0 +1,20 @@
+{
+  "name": "spelportalen",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node test/logic.test.js",
+    "serve": "npx --yes http-server www -p 5173 -c-1",
+    "voices": "node scripts/make-voices.mjs",
+    "android": "npx cap sync android && npx cap open android"
+  },
+  "dependencies": {
+    "@capacitor-community/text-to-speech": "^8.0.2",
+    "@capacitor/android": "^8.6.2",
+    "@capacitor/core": "^8.6.2"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.6.2",
+    "msedge-tts": "^2.1.1"
+  }
+}
