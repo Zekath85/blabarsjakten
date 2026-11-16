@@ -201,6 +201,7 @@ function camera(x, y, zoom) {
   const m = margin(s);
   const fitAxis = (c, v) => (W * s >= v - 1 ? Math.min(m, Math.max(v - W * s - m, v / 2 - c * s)) : v / 2 - c * s);
   cam = { tx: fitAxis(x, vw), ty: fitAxis(y, vh), s, vw, vh };
+  $('#recenterBtn').hidden = true;
   setWorld(cam.tx, cam.ty);
 }
 let cam = null;
@@ -227,7 +228,12 @@ $('#viewport').addEventListener('pointermove', e => {
   cam.tx = lim(drag.tx + e.clientX - drag.x, cam.vw);
   cam.ty = lim(drag.ty + e.clientY - drag.y, cam.vh);
   setWorld(cam.tx, cam.ty);
+  // Man har tittat runt: visa knappen som tar en tillbaka till sin figur.
+  const btn = $('#recenterBtn');
+  if (btn.hidden) { btn.innerHTML = `<span>${figure(me(), me().color, true)}</span>`; btn.hidden = false; }
 });
+$('#recenterBtn').addEventListener('pointerdown', e => e.stopPropagation()); // inte börja dra när man trycker på knappen
+$('#recenterBtn').onclick = () => { sfx.click(); focusTile(me().pos); };
 const endDrag = () => { if (drag) { drag = null; $('#world').style.transition = ''; } };
 $('#viewport').addEventListener('pointerup', endDrag);
 $('#viewport').addEventListener('pointercancel', endDrag);
