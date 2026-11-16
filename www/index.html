@@ -34,6 +34,10 @@
   </main>
   <script type="module">
     import { ART } from './games/blabarsjakten/art.js';
+    import { music } from './shared/music.js';
+    import { MENU_SONG } from './shared/menu-song.js';
+    // Lugn menymusik från första trycket (webbläsaren kräver ett tryck innan ljud får spelas).
+    addEventListener('pointerdown', () => music.play(MENU_SONG), { once: true });
     // Nytt spel = en rad här + en mapp under games/.
     const GAMES = [
       { href: 'games/blabarsjakten/index.html', name: 'Blåbärsjakten', text: 'Samla flest blåbärskorgar!', pic: ['fox', 'owl', 'squirrel', 'hedgehog'].map(k => ART[k]).join('') },

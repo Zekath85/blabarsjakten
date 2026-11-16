@@ -2,7 +2,7 @@
 // Korten och berättarens repliker är inspelade (mp3). Saknas en fil används plattans röst (speechSynthesis).
 
 // Inställningar: läs upp kort, berättaren, lugnare tal, ljudeffekter, lugnt läge (färre rörelser).
-const DEFAULTS = { cards: true, guide: true, slow: false, sfx: true, calm: false };
+const DEFAULTS = { cards: true, guide: true, slow: false, sfx: true, calm: false, music: true, musicVol: 0.5, song: 'theme' };
 let prefs = { ...DEFAULTS };
 try { prefs = { ...DEFAULTS, ...JSON.parse(localStorage.getItem('prefs') || '{}') }; } catch {}
 const listeners = [];
@@ -33,18 +33,24 @@ if (hasWebSpeech) { pickVoice(); speechSynthesis.onvoiceschanged = pickVoice; }
 function stopSpeech() {
   clip.pause();
   if (hasWebSpeech) speechSynthesis.cancel();
+  talking(false);
 }
 
 // Inspelad röst. Returnerar ett löfte som blir klart när uppläsningen är slut.
 const clip = new Audio();
+const speechListeners = [];
+export const onSpeech = fn => speechListeners.push(fn);
+const talking = on => speechListeners.forEach(fn => fn(on));
+
 export function playClip(url, text, voice = NARRATOR, kind = 'cards') {
   if (kind !== 'always' && !prefs[kind]) return Promise.resolve();
   stopSpeech();
   clip.src = url;
   clip.playbackRate = prefs.slow ? 0.85 : 1; // lugnare tal, rösten behåller sitt tonläge
   return new Promise(done => {
-    clip.onended = clip.onerror = () => done();
-    clip.play().catch(() => speak(text, voice, kind).then(done));
+    clip.onended = clip.onerror = () => { talking(false); done(); };
+    talking(true);
+    clip.play().catch(() => speak(text, voice, kind).then(() => { talking(false); done(); }));
   });
 }
 
@@ -61,7 +67,8 @@ export function speak(text, voice = NARRATOR, kind = 'guide') {
     u.voice = svVoice;
     u.pitch = voice.pitch;
     u.rate = voice.rate * (prefs.slow ? 0.85 : 1);
-    u.onend = u.onerror = done;
+    u.onend = u.onerror = () => { talking(false); done(); };
+    talking(true);
     speechSynthesis.speak(u);
   });
 }
@@ -70,10 +77,11 @@ export const stop = stopSpeech;
 // --- Ljudeffekter med Web Audio (inga ljudfiler behövs).
 // Mjuka toner med kort insvängning: låter som marimba och klockor i stället för pip.
 let ctx;
+export const getCtx = () => (ctx ||= new (window.AudioContext || window.webkitAudioContext)());
 function tone(freq, dur, { type = 'sine', vol = 0.16, delay = 0, to } = {}) {
   if (!prefs.sfx) return;
   try {
-    ctx ||= new (window.AudioContext || window.webkitAudioContext)();
+    getCtx();
     const t = ctx.currentTime + delay;
     const o = ctx.createOscillator(), g = ctx.createGain();
     o.type = type;

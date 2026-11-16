@@ -6,6 +6,9 @@ import { renderScenery, THEMES, SCENE_CELLS } from './scenery.js';
 import { stop, playClip, sfx, settings } from '../../shared/audio.js';
 import { avatar, robot, OPTIONS, DEFAULT_LOOKS } from '../../shared/avatar.js';
 import { confirmQuit } from '../../shared/dialog.js';
+import { music } from '../../shared/music.js';
+import { MENU_SONG } from '../../shared/menu-song.js';
+import { SONGS } from './songs.js';
 import { ICONS, medal, sizeIcon, fillIcons } from '../../shared/icons.js';
 
 // Inspelad röst för kortet (filer från "npm run voices").
@@ -295,6 +298,7 @@ $('#startBtn').onclick = startGame;
 function startGame() {
   sfx.good();
   setSeason(seasonPick, true);
+  music.play(SONGS[settings.get('song')] || SONGS.theme);
   const who = lineup();
   game = L.createGame(who.map(p => p.name), board);
   shown.length = 0;
@@ -781,7 +785,7 @@ function showPodium() {
   const winners = list.filter(r => r.rank === 1).map(r => r.player.name);
   say(winners.length > 1 ? 'tie' : 'win');
 }
-$('#againBtn').onclick = () => { $('#podium').hidden = true; renderSetup(); show('setup'); };
+$('#againBtn').onclick = () => { $('#podium').hidden = true; renderSetup(); show('setup'); music.play(MENU_SONG); };
 $('#menuBtn').onclick = () => (location.href = '../../index.html');
 
 // ---------- Knappar högst upp ----------
@@ -790,15 +794,36 @@ $('#backBtn').onclick = async () => {
   location.href = '../../index.html';
 };
 const soundIcon = () => ($('#soundBtn').innerHTML = `<svg viewBox="0 0 40 40"><path d="M6 15 H13 L22 7 V33 L13 25 H6Z" fill="#fff" stroke="#fff" stroke-width="2" stroke-linejoin="round"/>${
-  ['cards', 'guide', 'sfx'].some(settings.get)
+  ['cards', 'guide', 'sfx', 'music'].some(settings.get)
     ? '<path d="M27 14 Q31 20 27 26 M31 10 Q38 20 31 30" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round"/>'
     : '<path d="M28 15 L36 25 M36 15 L28 25" stroke="#ff8a80" stroke-width="3.5" stroke-linecap="round"/>'}</svg>`);
+const SONG_ICON = { theme: ART.basket, walk: ART.tree, lullaby: ART.owl, fox: ART.fox };
+const inGame = () => game && !game.over;
+function renderSongs() {
+  $('#songList').innerHTML = Object.entries(SONGS).map(([key, s]) =>
+    `<button class="song ${key === settings.get('song') ? 'on' : ''}" data-song="${key}">${SONG_ICON[key] || ''}<small>${s.name}</small></button>`).join('');
+}
 $('#soundBtn').onclick = () => {
   document.querySelectorAll('[data-pref]').forEach(cb => (cb.checked = settings.get(cb.dataset.pref)));
+  $('#musicVol').value = settings.get('musicVol');
+  renderSongs();
   $('#soundPanel').hidden = false;
 };
+$('#songList').onclick = e => {
+  const key = e.target.closest('.song')?.dataset.song;
+  if (!key) return;
+  settings.set('song', key);
+  if (!settings.get('music')) settings.set('music', true);
+  $('#soundPanel').querySelector('[data-pref="music"]').checked = true;
+  music.play(SONGS[key]); // spela direkt, så man hör hur den låter
+  renderSongs();
+};
+$('#musicVol').oninput = e => settings.set('musicVol', +e.target.value);
 $('#soundPanel').onchange = e => { settings.set(e.target.dataset.pref, e.target.checked); soundIcon(); };
-$('#closeSoundBtn').onclick = () => ($('#soundPanel').hidden = true);
+$('#closeSoundBtn').onclick = () => {
+  $('#soundPanel').hidden = true;
+  if (!inGame()) music.play(MENU_SONG);
+};
 soundIcon();
 $('#rulesBtn').onclick = () => ($('#rules').hidden = false);
 
@@ -836,6 +861,8 @@ function watchSpeed() {
   };
   requestAnimationFrame(tick);
 }
+
+addEventListener('pointerdown', () => { if (!music.playing) music.play(inGame() ? SONGS[settings.get('song')] || SONGS.theme : MENU_SONG); }, { once: true });
 
 fillIcons();
 renderSetup();
