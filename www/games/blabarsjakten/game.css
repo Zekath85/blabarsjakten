@@ -310,7 +310,7 @@ body[data-season="winter"] .world { background-color: #eef5fb; }
 
 /* ---------- 3D-vy: planen lutar bakåt, figurer och träd står upp ---------- */
 .stage { position: absolute; inset: 0; transform-origin: 50% 50%; transition: transform .6s cubic-bezier(.3,.7,.3,1); }
-body.tilt .stage { transform: perspective(1300px) rotateX(42deg) scale(1.05); transform-style: preserve-3d; }
+body.tilt .stage { transform: perspective(1300px) rotateX(42deg); transform-style: preserve-3d; }
 body.tilt .world, body.tilt .pawn, body.tilt .pawn .hop, body.tilt .deco, body.tilt #pawns { transform-style: preserve-3d; }
 body.tilt .deco svg { transform-origin: 50% 90%; transform: rotateX(-42deg); }
 body.tilt .pawn .hop svg { transform-origin: 50% 95%; transform: rotateX(-42deg) translateZ(2px); }

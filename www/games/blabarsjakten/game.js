@@ -196,12 +196,15 @@ function camera(x, y, zoom) {
   const vw = vp.clientWidth, vh = vp.clientHeight;
   const fit = Math.min(vw, vh) / W * 0.96;
   // inzoomat: planen fyller hela rutan, och kameran stannar vid kanterna
-  const s = (zoom ? Math.max(fit * 2, vw / W, vh / W) : fit) * (tilt && zoom ? 1.15 : 1);
-  const fitAxis = (c, v) => (W * s >= v - 1 ?Math.min(0, Math.max(v - W * s, v / 2 - c * s)) : v / 2 - c * s);
+  const s = zoom ? Math.max(fit * 2, vw / W, vh / W) : fit;
+  // I 3D förstoras den närmaste delen, så där får kameran gå lite förbi kanten för att allt ska synas.
+  const m = margin(s);
+  const fitAxis = (c, v) => (W * s >= v - 1 ? Math.min(m, Math.max(v - W * s - m, v / 2 - c * s)) : v / 2 - c * s);
   cam = { tx: fitAxis(x, vw), ty: fitAxis(y, vh), s, vw, vh };
   setWorld(cam.tx, cam.ty);
 }
 let cam = null;
+const margin = s => (tilt ? CELL * 1.5 * s : 0);
 const setWorld = (tx, ty) => ($('#world').style.transform = `translate(${tx}px, ${ty}px) scale(${cam.s})`);
 
 // Dra planen med fingret eller musen medan man väntar på att slå. "Slå tärningen" centrerar igen.
@@ -214,7 +217,13 @@ $('#viewport').addEventListener('pointerdown', e => {
 });
 $('#viewport').addEventListener('pointermove', e => {
   if (!drag) return;
-  const lim = (t, v) => (W * cam.s > v ? Math.min(0, Math.max(v - W * cam.s, t)) : t);
+  // Gräns åt alla håll: kanten (plus lite extra i 3D), eller runt mitten om planen är smalare än rutan.
+  const m = margin(cam.s);
+  const lim = (t, v) => {
+    const room = v - W * cam.s;
+    const [lo, hi] = room < 0 ? [room - m, m] : [room / 2 - m, room / 2 + m];
+    return Math.min(hi, Math.max(lo, t));
+  };
   cam.tx = lim(drag.tx + e.clientX - drag.x, cam.vw);
   cam.ty = lim(drag.ty + e.clientY - drag.y, cam.vh);
   setWorld(cam.tx, cam.ty);
