@@ -54,7 +54,7 @@ $('#figures').innerHTML = Object.entries(FIGURES).map(([k, f]) => `<span style="
 
 function renderSetup() {
   $('#counts').innerHTML =
-    `<button class="count bot ${bot ? 'on' : ''}" data-n="bot" aria-label="En spelare mot datorn">1+${robot('#1e88e5', true)}</button>` +
+    `<button class="count bot ${bot ? 'on' : ''}" data-n="bot" aria-label="En spelare mot datorn">1</button>` +
     [2, 3, 4].map(n => `<button class="count ${!bot && n === count ? 'on' : ''}" data-n="${n}">${n}</button>`).join('');
   $('#names').innerHTML = lineup().map((p, i) => {
     const id = p.bot ? 'bot' : i;
