@@ -1,9 +1,17 @@
 // Blåbärsjaktens regler. Ingen skärmkod här, så det kan testas med Node.
 import { DECKS } from './cards.js';
 
-export const GRID = 10;          // spelplanen är 10 x 10 rutor
-export const PATH_LEN = 40;      // antal pusselbitar, start och mål inräknade
-export const START_BASKETS = 8;
+// Kartstorlekar: rutnätets bredd och antal pusselbitar (start och mål inräknade).
+export const SIZES = {
+  small:  { name: 'Liten',  grid: 8,  len: 26 },
+  medium: { name: 'Mellan', grid: 10, len: 40 },
+  large:  { name: 'Stor',   grid: 12, len: 58 },
+};
+export const GRID = SIZES.medium.grid;
+export const PATH_LEN = SIZES.medium.len;
+// Uppskattad speltid i minuter. ponytail: grov tumregel, ca 25 s per tur och 3,5 rutor per slag.
+export const estimateMinutes = (size, players) => Math.max(3, Math.round(SIZES[size].len / 3.5 * players * 25 / 60));
+export const START_BASKETS = 0;
 export const BONUS = [5, 3, 2, 1];
 export const COLORS = ['#e53935', '#1e88e5', '#fbc02d', '#43a047'];
 const TILES = { fox: 4, owl: 3, squirrel: 3, hedgehog: 3, berry: 6 };
@@ -29,7 +37,7 @@ function shuffle(a, rng) {
 
 // Slingrande väg i rutnätet. En ny bit får bara röra föregående bit,
 // så vägen ser ut som pusselbitar med mellanrum, aldrig en klump.
-export function generatePath(rng = Math.random) {
+export function generatePath(rng = Math.random, GRID = SIZES.medium.grid, PATH_LEN = SIZES.medium.len) {
   const key = (x, y) => y * GRID + x;
   for (;;) {
     let budget = 4000; // ponytail: slumpad sökning med omstart, räcker gott för 40 av 100 rutor
@@ -58,15 +66,20 @@ export function generatePath(rng = Math.random) {
   }
 }
 
-export function makeBoard(rng = Math.random) {
-  const path = generatePath(rng);
-  const middle = Object.entries(TILES).flatMap(([type, n]) => Array(n).fill(type));
+// Brädet: en lista med rutor. board.grid = rutnätets bredd.
+export function makeBoard(rng = Math.random, size = 'medium') {
+  const { grid, len } = SIZES[size];
+  const path = generatePath(rng, grid, len);
+  // Lika stor andel figurer och blåbär oavsett storlek (räknat från mellankartan).
+  const middle = Object.entries(TILES).flatMap(([type, n]) => Array(Math.round(n * len / SIZES.medium.len)).fill(type));
   while (middle.length < path.length - 2) middle.push('empty');
   shuffle(middle, rng);
-  return path.map((p, i) => {
+  const board = path.map((p, i) => {
     const type = i === 0 ? 'start' : i === path.length - 1 ? 'goal' : middle[i - 1];
     return type === 'berry' ? { ...p, type, value: 1 + Math.floor(rng() * 3) } : { ...p, type };
   });
+  board.grid = grid;
+  return board;
 }
 
 export function createGame(names, board, rng = Math.random) {
@@ -130,6 +143,7 @@ export function applyCard(game, card) {
     case 'all': game.players.forEach(p => add(p, n)); break;
     case 'takeFromEach': others.forEach(p => add(me, -add(p, -n))); break;
     case 'giveToPoorest': if (others.length) add(fewest(others), -add(me, -n)); break;
+    case 'giveToEach': others.forEach(p => add(p, -add(me, -n))); break;
     case 'richToPoor': { const r = most(game.players), p = fewest(game.players); if (r !== p) add(p, -add(r, -n)); break; }
     case 'move': return { steps: n };
     case 'again': return { again: true };

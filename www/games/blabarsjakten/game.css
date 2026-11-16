@@ -282,7 +282,7 @@ body[data-season="winter"] .world { background-color: #eef5fb; }
 .card3d.tappable .card-back { box-shadow: 0 0 0 4px rgba(255,255,255,.6), 0 0 40px 10px var(--c), 0 20px 40px rgba(0,0,0,.6); }
 .tap-hint { position: relative; font-size: 28px; font-weight: 900; color: #fff; text-shadow: 0 3px 0 rgba(0,0,0,.4); animation: pulse 1.2s ease-in-out infinite; }
 /* Högen kortet kom ifrån: lyser och växer ovanpå mörkret. */
-.pile.picked { position: fixed; z-index: 1; pointer-events: none; transform-origin: bottom left; animation: picked 1.4s ease-in-out infinite; }
+.pile.picked { position: relative; z-index: 1; transform-origin: bottom left; animation: picked 1.4s ease-in-out infinite; }
 @keyframes picked { 0%, 100% { transform: scale(1.25); box-shadow: 0 0 0 4px #fff, 0 0 24px 8px var(--c); } 50% { transform: scale(1.32); box-shadow: 0 0 0 4px #fff, 0 0 36px 14px var(--c); } }
 
 /* Etikett längst ner på kortet: +2 korgar (grön), −1 korg (röd), Inget händer (grå). */
@@ -291,3 +291,35 @@ body[data-season="winter"] .world { background-color: #eef5fb; }
 .card-front .effect.good { background: linear-gradient(#81c784, #388e3c); }
 .card-front .effect.bad { background: linear-gradient(#ef7a74, #c62828); }
 .card-front .effect.neutral { background: linear-gradient(#b0bec5, #78909c); }
+
+/* Kartstorlek: liten / mellan / stor med ungefärlig tid. */
+.actions { flex-wrap: wrap; justify-content: flex-end; align-items: center; width: 100%; }
+.sizes { display: flex; gap: 6px; padding: 5px; margin-right: auto; border-radius: 22px; background: rgba(0,0,0,.35); border: 2px solid rgba(255,214,120,.45); }
+.size { min-width: 100px; padding: 8px 14px; border-radius: 16px; display: flex; flex-direction: column; align-items: center; line-height: 1.1; color: #fff; }
+.size b { font-size: 22px; }
+.size small { font-size: 15px; opacity: .8; }
+.size.on { background: linear-gradient(#ffe08a, #f4a923); color: #4a2a00; box-shadow: inset 0 2px 0 rgba(255,255,255,.6), 0 4px 0 var(--gold-dark); }
+
+/* Rävens kort: mörkrött, pulserande och skakande. */
+#cardOverlay.danger { background: radial-gradient(circle at 50% 45%, rgba(110, 0, 0, .55), rgba(25, 0, 0, .94) 70%); animation: dangerPulse 1.6s ease-in-out infinite; }
+#cardOverlay.danger .rays { opacity: .45; background: repeating-conic-gradient(#ff3b2f 0 6deg, transparent 6deg 20deg); animation-duration: 6s; }
+#cardOverlay.danger .card3d { animation: cardIn .55s cubic-bezier(.2,.9,.3,1.2), shake .5s .55s 2; }
+#cardOverlay.danger .card3d.tappable .card-back { box-shadow: 0 0 0 4px rgba(255, 80, 60, .8), 0 0 50px 16px #c62828, 0 20px 40px rgba(0, 0, 0, .7); }
+@keyframes dangerPulse { 50% { box-shadow: inset 0 0 120px 40px rgba(200, 0, 0, .45); } }
+@keyframes shake { 20% { transform: translateX(-10px) rotate(-3deg); } 40% { transform: translateX(10px) rotate(3deg); } 60% { transform: translateX(-6px) rotate(-2deg); } 80% { transform: translateX(6px) rotate(2deg); } }
+
+/* ---------- 3D-vy: planen lutar bakåt, figurer och träd står upp ---------- */
+.stage { position: absolute; inset: 0; transform-origin: 50% 50%; transition: transform .6s cubic-bezier(.3,.7,.3,1); }
+body.tilt .stage { transform: perspective(1300px) rotateX(42deg) scale(1.05); transform-style: preserve-3d; }
+body.tilt .world, body.tilt .pawn, body.tilt .pawn .hop, body.tilt .deco, body.tilt #pawns { transform-style: preserve-3d; }
+body.tilt .deco svg { transform-origin: 50% 90%; transform: rotateX(-42deg); }
+body.tilt .pawn .hop svg { transform-origin: 50% 95%; transform: rotateX(-42deg) translateZ(2px); }
+body.tilt .pawn .tag { transform: translateX(-50%) rotateX(-42deg); transform-origin: 50% 0; }
+body.tilt .pawn .shadow { transform: translateY(6px) scaleY(1.3); }
+/* Tjockare kant och längre skugga gör bitarna mer upphöjda i 3D. */
+body.tilt .piece .side { transform: translate(0, 12px); }
+body.tilt .piece .shadow { transform: translate(6px, 20px); }
+
+/* Man kan dra planen med fingret. */
+.viewport { touch-action: none; cursor: grab; }
+.viewport:active { cursor: grabbing; }

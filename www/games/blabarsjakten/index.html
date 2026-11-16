@@ -16,6 +16,7 @@
     <svg viewBox="0 0 40 40"><path d="M24 8 L12 20 L24 32" fill="none" stroke="#fff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/></svg>
   </button>
   <button class="icon-btn" id="soundBtn" style="right:12px" aria-label="Ljud"></button>
+  <button class="icon-btn" id="viewBtn" style="right:180px" aria-label="Växla mellan platt och 3D"></button>
   <button class="icon-btn" id="rulesBtn" style="right:96px" aria-label="Regler">
     <svg viewBox="0 0 40 40"><path d="M5 9 Q13 5 20 10 Q27 5 35 9 V32 Q27 28 20 33 Q13 28 5 32Z" fill="rgba(255,255,255,.2)" stroke="#fff" stroke-width="3" stroke-linejoin="round"/><path d="M20 10 V33" stroke="#fff" stroke-width="3"/></svg>
   </button>
@@ -37,7 +38,7 @@
     <div class="scores" id="scores"></div>
     <div class="board-wrap">
       <div class="viewport" id="viewport">
-        <div class="world" id="world"></div>
+        <div class="stage"><div class="world" id="world"></div></div>
         <div class="weather" id="weather"></div>
         <div class="vignette"></div>
         <div class="dice-zone" id="diceZone" hidden>
@@ -52,6 +53,7 @@
     <footer class="bar">
       <div class="piles" id="piles"></div>
       <div class="actions" id="previewActions">
+        <div class="sizes" id="sizes" aria-label="Kartans storlek"></div>
         <button class="btn blue" id="newBoardBtn">🔄 Ny bana</button>
         <button class="btn green" id="startBtn">Starta! ▶</button>
       </div>
@@ -69,7 +71,6 @@
       </div>
     </div>
     <div class="tap-hint" id="tapHint" hidden>👆 Tryck på kortet!</div>
-    <div id="pickedPile"></div>
     <div class="card-buttons" id="cardButtons" hidden>
       <button class="btn blue" id="cardSpeakBtn" aria-label="Läs igen">🔊</button>
       <button class="btn green" id="cardOkBtn">Okej!</button>
@@ -98,7 +99,7 @@
     <div class="panel">
       <h2>Så spelar man</h2>
       <div id="rulesText">
-        <p>Alla börjar med 8 blåbärskorgar. Den som har flest korgar när alla har gått i mål vinner.</p>
+        <p>Alla börjar utan korgar. Den som har flest blåbärskorgar när alla har gått i mål vinner.</p>
         <p>Slå tärningen och hoppa lika många steg på pusselvägen.</p>
         <p>Landar du på ett löv händer ingenting.</p>
         <p>Landar du på en blåbärskorg får du så många korgar som det står.</p>

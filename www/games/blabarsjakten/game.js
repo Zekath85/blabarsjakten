@@ -11,7 +11,8 @@ const readCard = kind => playClip(`voice/${card.deck}-${DECKS[card.deck].indexOf
 const $ = s => document.querySelector(s);
 const wait = ms => new Promise(r => setTimeout(r, ms));
 const esc = s => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
-const CELL = 90, W = L.GRID * CELL;
+const CELL = 90;
+let W = L.GRID * CELL; // planens bredd i pixlar, beror på kartstorleken
 const NUM = ['ett', 'två', 'tre', 'fyra', 'fem', 'sex'];
 const MEDAL = ['🥇', '🥈', '🥉', '🏅'];
 const OFFSET = [[-18, -14], [18, -14], [-18, 12], [18, 12]];
@@ -21,9 +22,10 @@ let names = ['Spelare 1', 'Spelare 2', 'Spelare 3', 'Spelare 4'];
 let looks = DEFAULT_LOOKS.map(l => ({ ...l }));
 let count = 2;
 let bot = false, botName = 'Robo'; // bot: en spelare mot datorn
+let mapSize = 'medium'; // liten, mellan eller stor karta
 // Kom ihåg namn och figurer till nästa gång.
-try { ({ names, looks, count, bot, botName } = { names, looks, count, bot, botName, ...JSON.parse(localStorage.getItem('bbj-players') || '{}') }); } catch {}
-const savePlayers = () => { try { localStorage.setItem('bbj-players', JSON.stringify({ names, looks, count, bot, botName })); } catch {} };
+try { ({ names, looks, count, bot, botName, mapSize } = { names, looks, count, bot, botName, mapSize, ...JSON.parse(localStorage.getItem('bbj-players') || '{}') }); } catch {}
+const savePlayers = () => { try { localStorage.setItem('bbj-players', JSON.stringify({ names, looks, count, bot, botName, mapSize })); } catch {} };
 // Vilka som spelar: antingen 2–4 personer, eller en person + datorn.
 const lineup = () => bot
   ? [{ name: names[0], look: looks[0] }, { name: botName, bot: true }]
@@ -133,12 +135,15 @@ function tileIcon(t) {
 }
 
 function newBoard() {
-  board = L.makeBoard();
-  const used = new Set(board.map(t => t.y * L.GRID + t.x));
+  board = L.makeBoard(Math.random, mapSize);
+  const G = board.grid;
+  W = G * CELL;
+  renderSizes();
+  const used = new Set(board.map(t => t.y * G + t.x));
   let deco = '';
-  for (let y = 0; y < L.GRID; y++)
-    for (let x = 0; x < L.GRID; x++)
-      if (!used.has(y * L.GRID + x) && Math.random() < 0.28) {
+  for (let y = 0; y < G; y++)
+    for (let x = 0; x < G; x++)
+      if (!used.has(y * G + x) && Math.random() < 0.28) {
         const art = ['tree', 'tree', 'bush', 'flower'][Math.floor(Math.random() * 4)];
         deco += `<div class="deco" data-kind="${art}" style="left:${x * CELL}px;top:${y * CELL}px">${ART[art]}</div>`;
       }
@@ -191,15 +196,52 @@ function camera(x, y, zoom) {
   const vw = vp.clientWidth, vh = vp.clientHeight;
   const fit = Math.min(vw, vh) / W * 0.96;
   // inzoomat: planen fyller hela rutan, och kameran stannar vid kanterna
-  const s = zoom ? Math.max(fit * 2, vw / W, vh / W) : fit;
+  const s = (zoom ? Math.max(fit * 2, vw / W, vh / W) : fit) * (tilt && zoom ? 1.15 : 1);
   const fitAxis = (c, v) => (W * s >= v - 1 ?Math.min(0, Math.max(v - W * s, v / 2 - c * s)) : v / 2 - c * s);
-  $('#world').style.transform = `translate(${fitAxis(x, vw)}px, ${fitAxis(y, vh)}px) scale(${s})`;
+  cam = { tx: fitAxis(x, vw), ty: fitAxis(y, vh), s, vw, vh };
+  setWorld(cam.tx, cam.ty);
 }
+let cam = null;
+const setWorld = (tx, ty) => ($('#world').style.transform = `translate(${tx}px, ${ty}px) scale(${cam.s})`);
+
+// Dra planen med fingret eller musen medan man väntar på att slå. "Slå tärningen" centrerar igen.
+let drag = null;
+$('#viewport').addEventListener('pointerdown', e => {
+  if (!game || state !== 'roll' || isBot() || !cam) return;
+  drag = { x: e.clientX, y: e.clientY, tx: cam.tx, ty: cam.ty };
+  $('#world').style.transition = 'none';
+  $('#viewport').setPointerCapture(e.pointerId);
+});
+$('#viewport').addEventListener('pointermove', e => {
+  if (!drag) return;
+  const lim = (t, v) => (W * cam.s > v ? Math.min(0, Math.max(v - W * cam.s, t)) : t);
+  cam.tx = lim(drag.tx + e.clientX - drag.x, cam.vw);
+  cam.ty = lim(drag.ty + e.clientY - drag.y, cam.vh);
+  setWorld(cam.tx, cam.ty);
+});
+const endDrag = () => { if (drag) { drag = null; $('#world').style.transition = ''; } };
+$('#viewport').addEventListener('pointerup', endDrag);
+$('#viewport').addEventListener('pointercancel', endDrag);
 const overview = () => camera(W / 2, W / 2, false);
 const focusTile = pos => camera(board[pos].x * CELL + CELL / 2, board[pos].y * CELL + CELL / 2, true);
 addEventListener('resize', () => lastCam && camera(...lastCam));
 
 $('#newBoardBtn').onclick = () => { sfx.pop(); newBoard(); };
+
+// Kartstorlek: liten, mellan eller stor, med ungefärlig speltid för antalet spelare.
+function renderSizes() {
+  const players = lineup().length;
+  $('#sizes').innerHTML = Object.entries(L.SIZES).map(([key, z]) =>
+    `<button class="size ${key === mapSize ? 'on' : ''}" data-size="${key}"><b>${z.name}</b><small>ca ${L.estimateMinutes(key, players)} min</small></button>`).join('');
+}
+$('#sizes').onclick = e => {
+  const size = e.target.closest('.size')?.dataset.size;
+  if (!size || size === mapSize) return;
+  mapSize = size;
+  savePlayers();
+  sfx.pop();
+  newBoard();
+};
 $('#startBtn').onclick = startGame;
 
 // ---------- Spelet ----------
@@ -291,6 +333,7 @@ $('#actionBtn').onclick = () => {
 
 async function roll() {
   setState('busy');
+  focusTile(me().pos); // tillbaka till spelaren om man har tittat runt
   const n = L.rollDie();
   await rollDice(n);
   await walk(n);
@@ -381,6 +424,7 @@ function effectLabel({ type, n }) {
     case 'again': return ['Slå igen!', 'good'];
     case 'takeFromEach': return [`+${korg(n)} från alla`, 'good'];
     case 'giveToPoorest': return [`−${korg(n)}`, 'bad'];
+    case 'giveToEach': return [`−${korg(n)} till alla`, 'bad'];
     case 'richToPoor': return [`Den med mest ger ${korg(n)}`, 'neutral'];
     default: return ['Inget händer', 'neutral'];
   }
@@ -394,16 +438,21 @@ async function showCard(deck) {
   const f = FIGURES[deck];
   const ov = $('#cardOverlay');
   ov.style.setProperty('--c', f.color);
+  // Räven: läskig stämning med mörkrött ljus, skakande kort och hotfullt ljud.
+  ov.classList.toggle('danger', deck === 'fox');
+  if (deck === 'fox') sfx.danger();
   $('#cardBack').innerHTML = ART[deck];
   const [label, mood] = effectLabel(card.effect);
   $('#cardFront').innerHTML = `<div class="head"><span>${ART[deck]}</span><b>${f.name}</b></div><p>${card.text}</p>` +
     `<div class="effect ${mood}">${label}</div>`;
   $('#cardButtons').hidden = true;
   $('#tapHint').hidden = isBot();
-  // Högen kortet kom ifrån lyser och växer nere till vänster (ritas ovanpå mörkret).
+  // Högen kortet kom ifrån lyser och växer nere till vänster. Mörkret får ett hål där, så högen syns.
   const pile = $(`.pile[data-deck="${deck}"]`), r = pile?.getBoundingClientRect();
-  $('#pickedPile').innerHTML = r?.width
-    ? `<div class="pile picked" style="--c:${f.color};left:${r.left}px;top:${r.top}px">${ART[deck]}</div>` : '';
+  pile?.classList.add('picked');
+  const dark = deck === 'fox' ? 'rgba(25, 0, 0, .92)' : 'rgba(8, 14, 11, .82)';
+  ov.style.background = r?.width
+    ? `radial-gradient(circle at ${r.left + r.width / 2}px ${r.top + r.height / 2}px, transparent 0 62px, ${dark} 92px)` : '';
   $(`#tile${me().pos}`).classList.add('lit');
   const c3 = $('#card3d');
   c3.classList.remove('flip');
@@ -434,7 +483,8 @@ $('#cardSpeakBtn').onclick = () => readCard('always');
 $('#cardOkBtn').onclick = () => okCard();
 async function okCard() {
   $('#cardOverlay').hidden = true;
-  $('#pickedPile').innerHTML = '';
+  $('#cardOverlay').style.background = '';
+  document.querySelectorAll('.pile.picked').forEach(p => p.classList.remove('picked'));
   document.querySelectorAll('.tile.lit').forEach(t => t.classList.remove('lit'));
   const before = me().baskets;
   const r = L.applyCard(game, card);
@@ -541,6 +591,24 @@ $('#soundPanel').onchange = e => { settings.set(e.target.dataset.pref, e.target.
 $('#closeSoundBtn').onclick = () => ($('#soundPanel').hidden = true);
 soundIcon();
 $('#rulesBtn').onclick = () => ($('#rules').hidden = false);
+
+// Platt eller 3D-vy av spelplanen. Valet sparas i plattan.
+let tilt = false;
+try { tilt = localStorage.getItem('bbj-tilt') === '1'; } catch {}
+function applyTilt() {
+  document.body.classList.toggle('tilt', tilt);
+  $('#viewBtn').innerHTML = tilt
+    ? '<svg viewBox="0 0 40 40"><rect x="8" y="8" width="24" height="24" rx="4" fill="none" stroke="#fff" stroke-width="3.5"/><path d="M8 20 H32 M20 8 V32" stroke="#fff" stroke-width="2.5"/></svg>'
+    : '<svg viewBox="0 0 40 40"><path d="M20 5 L35 13 V27 L20 35 L5 27 V13Z" fill="rgba(255,255,255,.2)" stroke="#fff" stroke-width="3" stroke-linejoin="round"/><path d="M5 13 L20 21 L35 13 M20 21 V35" fill="none" stroke="#fff" stroke-width="3" stroke-linejoin="round"/></svg>';
+  if (lastCam) camera(...lastCam);
+}
+$('#viewBtn').onclick = () => {
+  tilt = !tilt;
+  try { localStorage.setItem('bbj-tilt', tilt ? '1' : '0'); } catch {}
+  sfx.pop();
+  applyTilt();
+};
+applyTilt();
 $('#closeRulesBtn').onclick = () => { $('#rules').hidden = true; stop(); };
 $('#readRulesBtn').onclick = () => playClip('voice/rules.mp3', $('#rulesText').innerText, undefined, 'always');
 

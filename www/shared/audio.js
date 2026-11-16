@@ -94,5 +94,6 @@ export const sfx = {
   good: () => notes([523, 659, 784, 1047], 0.09, { type: 'triangle' }),
   bad: () => notes([392, 330, 262], 0.13, { type: 'square', vol: 0.06 }),
   pop: () => tone(900 + Math.random() * 600, 0.18, { type: 'triangle', vol: 0.08, to: 200 }),
+  danger: () => { tone(98, 0.9, { type: 'sawtooth', vol: 0.09, to: 55 }); tone(104, 0.9, { type: 'sawtooth', vol: 0.06, to: 58, delay: 0.05 }); notes([311, 294, 262, 233], 0.16, { type: 'triangle', vol: 0.08 }); },
   win: () => notes([523, 659, 784, 1047, 784, 1047, 1319], 0.12, { type: 'triangle', vol: 0.16 }),
 };
