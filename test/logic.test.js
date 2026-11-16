@@ -39,7 +39,7 @@ assert.ok(estimateMinutes('medium', 2) < estimateMinutes('medium', 4));
 
 // Start
 let g = createGame(['A', 'B', 'C', 'D'], board, mulberry32(1));
-assert.deepEqual(g.players.map(p => p.baskets), [0, 0, 0, 0]);
+assert.deepEqual(g.players.map(p => p.baskets), [10, 10, 10, 10]);
 
 // Dra kort: kortet läggs underst
 const first = g.decks.fox[0];
@@ -70,7 +70,7 @@ move(g, PATH_LEN - 3);
 const r = applyCard(g, { effect: { type: 'move', n: 4 } });
 move(g, r.steps);
 assert.equal(land(g).type, 'goal');
-assert.equal(g.players[0].baskets, 0 + 5);
+assert.equal(g.players[0].baskets, 10 + 5);
 nextTurn(g);
 assert.equal(g.current, 1);
 nextTurn(g);
@@ -78,6 +78,7 @@ assert.equal(g.current, 1, 'klar spelare hoppas över');
 
 // Korgar: aldrig under 0, och man får bara det andra faktiskt har
 g = createGame(['A', 'B', 'C'], board, mulberry32(1));
+g.players[1].baskets = 0;
 g.players[2].baskets = 8;
 g.players[0].baskets = 1;
 applyCard(g, { effect: { type: 'lose', n: 3 } });
@@ -95,6 +96,15 @@ g.players.forEach((p, i) => (p.baskets = [1, 0, 0][i]));
 applyCard(g, { effect: { type: 'giveToEach', n: 1 } });
 assert.deepEqual(g.players.map(p => p.baskets), [0, 1, 0]);
 g.players.forEach((p, i) => (p.baskets = [1, 1, 6][i]));
+
+// Den som är i mål påverkas inte av kort (varken bra eller dåliga).
+g = createGame(['A', 'B', 'C'], board, mulberry32(1));
+g.players[1].place = 1; // B är i mål
+applyCard(g, { effect: { type: 'all', n: -2 } });
+applyCard(g, { effect: { type: 'takeFromEach', n: 1 } });
+assert.deepEqual(g.players.map(p => p.baskets), [8 + 1, 10, 7]);
+g.players.forEach((p, i) => (p.baskets = [1, 1, 6][i]));
+g.players[1].place = 0;
 
 // Prispall: lika = delad plats
 g.players[0].baskets = 6;

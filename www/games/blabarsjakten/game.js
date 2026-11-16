@@ -525,6 +525,14 @@ async function finish(r) {
   renderScores();
   sfx.win();
   fireworks(3800);
+  // Bonusen syns stort i mitten och flyger sedan upp till spelarens poäng.
+  const pop = document.createElement('div');
+  pop.className = 'bonus-pop';
+  pop.innerHTML = `<span class="medal-big">${MEDAL[r.place - 1]}</span>${ART.basket}<b>+${r.bonus}</b>`;
+  const chip = document.querySelectorAll('.chip')[game.current]?.getBoundingClientRect();
+  if (chip) { pop.style.setProperty('--tx', `${chip.left + chip.width / 2 - innerWidth / 2}px`); pop.style.setProperty('--ty', `${chip.top + chip.height / 2 - innerHeight / 2}px`); }
+  document.body.append(pop);
+  setTimeout(() => pop.remove(), 2600);
   speak(`Hurra! ${me().name} gick i mål som nummer ${NUM[r.place - 1]} och får ${korg(r.bonus)}!`);
   await wait(4200);
   endTurn();

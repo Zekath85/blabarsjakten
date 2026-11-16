@@ -11,7 +11,7 @@ export const GRID = SIZES.medium.grid;
 export const PATH_LEN = SIZES.medium.len;
 // Uppskattad speltid i minuter. ponytail: grov tumregel, ca 25 s per tur och 3,5 rutor per slag.
 export const estimateMinutes = (size, players) => Math.max(3, Math.round(SIZES[size].len / 3.5 * players * 25 / 60));
-export const START_BASKETS = 0;
+export const START_BASKETS = 10;
 export const BONUS = [5, 3, 2, 1];
 export const COLORS = ['#e53935', '#1e88e5', '#fbc02d', '#43a047'];
 const TILES = { fox: 4, owl: 3, squirrel: 3, hedgehog: 3, berry: 6 };
@@ -132,7 +132,9 @@ export function drawCard(game, deck) {
 // Gör det kortet säger. Flytt och "slå igen" sköts av skärmen.
 export function applyCard(game, card) {
   const me = currentPlayer(game);
-  const others = game.players.filter(p => p !== me);
+  // Den som har gått i mål är säkert hemma: deras korgar ändras inte längre av några kort.
+  const onBoard = game.players.filter(p => !p.place);
+  const others = onBoard.filter(p => p !== me);
   const add = (p, n) => { const before = p.baskets; p.baskets = Math.max(0, p.baskets + n); return p.baskets - before; };
   const fewest = list => list.reduce((a, b) => (b.baskets < a.baskets ? b : a), list[0]);
   const most = list => list.reduce((a, b) => (b.baskets > a.baskets ? b : a), list[0]);
@@ -140,11 +142,11 @@ export function applyCard(game, card) {
   switch (type) {
     case 'gain': add(me, n); break;
     case 'lose': add(me, -n); break;
-    case 'all': game.players.forEach(p => add(p, n)); break;
+    case 'all': onBoard.forEach(p => add(p, n)); break;
     case 'takeFromEach': others.forEach(p => add(me, -add(p, -n))); break;
     case 'giveToPoorest': if (others.length) add(fewest(others), -add(me, -n)); break;
     case 'giveToEach': others.forEach(p => add(p, -add(me, -n))); break;
-    case 'richToPoor': { const r = most(game.players), p = fewest(game.players); if (r !== p) add(p, -add(r, -n)); break; }
+    case 'richToPoor': { const r = most(onBoard), p = fewest(onBoard); if (r !== p) add(p, -add(r, -n)); break; }
     case 'move': return { steps: n };
     case 'again': return { again: true };
   }
