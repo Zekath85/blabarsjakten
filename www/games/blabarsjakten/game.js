@@ -402,7 +402,7 @@ async function startTurn() {
 }
 
 // Sikta: dra från tärningen. Ju längre man drar, desto hårdare kast. Släpp för att kasta. Ett snabbt tryck = lagom kast.
-const MAX_PULL = 260;
+const MAX_PULL = 520; // så långt man drar för fullt hårt kast (grön → gul → röd)
 let aim = null;
 $('#actionBtn').addEventListener('pointerdown', e => {
   if (isBot() || state !== 'roll') return;
