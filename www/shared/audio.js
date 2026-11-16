@@ -34,11 +34,15 @@ function stopSpeech() {
 
 // Inspelad röst (Piper-filer). Saknas filen läses texten upp med plattans röst i stället.
 const clip = new Audio();
+// Returnerar ett löfte som blir klart när uppläsningen är slut.
 export function playClip(url, text, voice = NARRATOR, kind = 'cards') {
-  if (kind !== 'always' && !prefs[kind]) return;
+  if (kind !== 'always' && !prefs[kind]) return Promise.resolve();
   stopSpeech();
   clip.src = url;
-  clip.play().catch(() => speak(text, voice, kind));
+  return new Promise(done => {
+    clip.onended = clip.onerror = () => done();
+    clip.play().catch(() => speak(text, voice, kind).then(done));
+  });
 }
 
 // kind: 'cards' | 'narrator' | 'always' (t.ex. knappen "Läs upp").

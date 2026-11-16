@@ -57,3 +57,20 @@ export function avatar(look, shirt = '#e53935', headOnly = false) {
     ${extra}
   </svg>`;
 }
+
+// Datorspelaren: en snäll robot. Samma storlek och ansiktsläge som barnfigurerna.
+export function robot(shirt = '#1e88e5', headOnly = false) {
+  return `<svg viewBox="${headOnly ? '16 8 68 68' : '0 0 100 120'}" xmlns="http://www.w3.org/2000/svg">
+    <path d="M24 118 Q24 82 50 80 Q76 82 76 118Z" fill="${shirt}" ${OUT}/>
+    <rect x="38" y="92" width="24" height="14" rx="5" fill="#fff" opacity=".55"/><circle cx="44" cy="99" r="2.5" fill="#ff5252"/><circle cx="52" cy="99" r="2.5" fill="#ffd54f"/>
+    <path d="M50 20 V9" stroke="#3b2414" stroke-width="3"/><circle cx="50" cy="8" r="5" fill="#ff5252" ${OUT}/>
+    <rect x="15" y="38" width="9" height="18" rx="4" fill="#90a4ae" ${OUT}/><rect x="76" y="38" width="9" height="18" rx="4" fill="#90a4ae" ${OUT}/>
+    <rect x="21" y="19" width="58" height="54" rx="18" fill="#dfe7eb" ${OUT}/>
+    <path d="M28 26 Q50 20 72 26" stroke="#fff" stroke-width="4" fill="none" stroke-linecap="round" opacity=".8"/>
+    <rect x="29" y="32" width="42" height="22" rx="11" fill="#263238"/>
+    <circle cx="41" cy="43" r="5.5" fill="#4dd0e1"/><circle cx="59" cy="43" r="5.5" fill="#4dd0e1"/>
+    <circle cx="42.5" cy="41.5" r="1.8" fill="#fff"/><circle cx="60.5" cy="41.5" r="1.8" fill="#fff"/>
+    <circle cx="31" cy="62" r="4" fill="#ff8a80" opacity=".5"/><circle cx="69" cy="62" r="4" fill="#ff8a80" opacity=".5"/>
+    <path d="M41 61 Q50 67 59 61" fill="none" stroke="#3b2414" stroke-width="2.5" stroke-linecap="round"/>
+  </svg>`;
+}

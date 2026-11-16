@@ -2,7 +2,7 @@ import * as L from './logic.js';
 import { FIGURES, DECKS } from './cards.js';
 import { ART, puzzlePath, SEASONS } from './art.js';
 import { speak, stop, playClip, sfx, settings } from '../../shared/audio.js';
-import { avatar, OPTIONS, DEFAULT_LOOKS } from '../../shared/avatar.js';
+import { avatar, robot, OPTIONS, DEFAULT_LOOKS } from '../../shared/avatar.js';
 
 // Inspelad röst för kortet (filer från "npm run voices").
 const readCard = kind => playClip(`voice/${card.deck}-${DECKS[card.deck].indexOf(card)}.mp3`, card.text, FIGURES[card.deck].voice, kind);
@@ -19,9 +19,16 @@ const korg = n => `${n} ${n === 1 ? 'korg' : 'korgar'}`;
 let names = ['Spelare 1', 'Spelare 2', 'Spelare 3', 'Spelare 4'];
 let looks = DEFAULT_LOOKS.map(l => ({ ...l }));
 let count = 2;
+let bot = false, botName = 'Robo'; // bot: en spelare mot datorn
 // Kom ihåg namn och figurer till nästa gång.
-try { ({ names, looks, count } = { names, looks, count, ...JSON.parse(localStorage.getItem('bbj-players') || '{}') }); } catch {}
-const savePlayers = () => { try { localStorage.setItem('bbj-players', JSON.stringify({ names, looks, count })); } catch {} };
+try { ({ names, looks, count, bot, botName } = { names, looks, count, bot, botName, ...JSON.parse(localStorage.getItem('bbj-players') || '{}') }); } catch {}
+const savePlayers = () => { try { localStorage.setItem('bbj-players', JSON.stringify({ names, looks, count, bot, botName })); } catch {} };
+// Vilka som spelar: antingen 2–4 personer, eller en person + datorn.
+const lineup = () => bot
+  ? [{ name: names[0], look: looks[0] }, { name: botName, bot: true }]
+  : names.slice(0, count).map((name, i) => ({ name, look: looks[i] }));
+// Figur för en spelare: barnet man skapat, eller roboten.
+const figure = (p, color, headOnly = false) => (p.bot ? robot(color, headOnly) : avatar(p.look, color, headOnly));
 let board, game, state = 'idle', drawDeck = null, card = null, lastCam = null;
 const shown = []; // korgar som visas i topplisten, för att se ändringar
 
@@ -32,15 +39,22 @@ function show(id) { document.querySelectorAll('.screen').forEach(s => (s.hidden 
 $('#figures').innerHTML = Object.entries(FIGURES).map(([k, f]) => `<span style="background:${f.color}">${ART[k]}</span>`).join('');
 
 function renderSetup() {
-  $('#counts').innerHTML = [2, 3, 4].map(n => `<button class="count ${n === count ? 'on' : ''}" data-n="${n}">${n}</button>`).join('');
-  $('#names').innerHTML = names.slice(0, count).map((nm, i) =>
-    `<div class="name-row"><button class="avatar-btn" data-i="${i}" style="--c:${L.COLORS[i]}" aria-label="Ändra figur">${avatar(looks[i], L.COLORS[i], true)}</button>` +
-    `<input value="${esc(nm)}" data-i="${i}" maxlength="14" readonly aria-label="Namn på spelare ${i + 1}">` +
-    `<button class="pen" data-i="${i}" aria-label="Ändra namn">✏️</button></div>`).join('');
+  $('#counts').innerHTML =
+    `<button class="count bot ${bot ? 'on' : ''}" data-n="bot" aria-label="En spelare mot datorn">1+${robot('#1e88e5', true)}</button>` +
+    [2, 3, 4].map(n => `<button class="count ${!bot && n === count ? 'on' : ''}" data-n="${n}">${n}</button>`).join('');
+  $('#names').innerHTML = lineup().map((p, i) => {
+    const id = p.bot ? 'bot' : i;
+    return `<div class="name-row"><button class="avatar-btn" data-i="${id}" style="--c:${L.COLORS[i]}" ${p.bot ? 'disabled' : ''} aria-label="Ändra figur">${figure(p, L.COLORS[i], true)}</button>` +
+      `<input value="${esc(p.name)}" data-i="${id}" maxlength="14" readonly aria-label="Namn på spelare ${i + 1}">` +
+      `<button class="pen" data-i="${id}" aria-label="Ändra namn">✏️</button></div>`;
+  }).join('');
 }
 $('#counts').onclick = e => {
-  const n = +e.target.dataset.n;
-  if (n) { count = n; sfx.click(); savePlayers(); renderSetup(); }
+  const n = e.target.closest('.count')?.dataset.n;
+  if (!n) return;
+  bot = n === 'bot';
+  if (!bot) count = +n;
+  sfx.click(); savePlayers(); renderSetup();
 };
 $('#names').onclick = e => {
   const av = e.target.closest('.avatar-btn');
@@ -53,10 +67,13 @@ $('#names').onclick = e => {
   input.select();
 };
 $('#names').addEventListener('focusout', e => {
-  const i = +e.target.dataset.i;
   if (e.target.tagName !== 'INPUT') return;
-  names[i] = e.target.value.trim() || `Spelare ${i + 1}`;
-  e.target.value = names[i];
+  if (e.target.dataset.i === 'bot') {
+    e.target.value = botName = e.target.value.trim() || 'Robo';
+  } else {
+    const i = +e.target.dataset.i;
+    e.target.value = names[i] = e.target.value.trim() || `Spelare ${i + 1}`;
+  }
   e.target.readOnly = true;
   savePlayers();
 });
@@ -189,12 +206,13 @@ function startGame() {
   sfx.good();
   const keys = Object.keys(SEASONS);
   setSeason(keys[Math.floor(Math.random() * keys.length)]);
-  game = L.createGame(names.slice(0, count), board);
+  const who = lineup();
+  game = L.createGame(who.map(p => p.name), board);
   shown.length = 0;
   game.players.forEach(p => shown.push(p.baskets));
-  game.players.forEach((p, i) => (p.look = looks[i]));
+  game.players.forEach((p, i) => { p.look = who[i].look; p.bot = !!who[i].bot; });
   $('#pawns').innerHTML = game.players.map((p, i) =>
-    `<div class="pawn" id="pawn${i}" style="--c:${p.color}"><span class="shadow"></span><div class="hop">${avatar(p.look, p.color)}</div>` +
+    `<div class="pawn" id="pawn${i}" style="--c:${p.color}"><span class="shadow"></span><div class="hop">${figure(p, p.color)}</div>` +
     `<span class="tag">${esc(p.name)}</span></div>`).join('');
   game.players.forEach((_, i) => placePawn(i));
   $('#piles').innerHTML = Object.entries(FIGURES).map(([k, f]) =>
@@ -216,7 +234,7 @@ function placePawn(i) {
 function renderScores() {
   $('#scores').innerHTML = game.players.map((p, i) =>
     `<div class="chip ${i === game.current && !game.over ? 'on' : ''} ${p.place ? 'done' : ''}" style="--c:${p.color}">` +
-    `<span class="chip-face">${avatar(p.look, p.color, true)}</span><b>${esc(p.name)}</b><span class="bk">${ART.basket}</span>` +
+    `<span class="chip-face">${figure(p, p.color, true)}</span><b>${esc(p.name)}</b><span class="bk">${ART.basket}</span>` +
     `<span class="num" id="num${i}">${p.baskets}</span>${p.place ? `<span>${MEDAL[p.place - 1]}</span>` : ''}</div>`).join('');
   game.players.forEach((p, i) => {
     const diff = p.baskets - shown[i];
@@ -252,23 +270,38 @@ function setState(s, deck = null) {
     btn.innerHTML = `${ART[deck]} Dra kort!`;
     $(`#tile${me().pos}`).classList.add('lit');
   }
+  // Datorns tur: knappen är grå och visar att datorn spelar.
+  if (game && !game.over && me().bot) {
+    btn.disabled = true;
+    btn.className = 'btn action';
+    btn.innerHTML = `${robot(me().color, true)} ${esc(me().name)} spelar…`;
+  }
+}
+const isBot = () => game && me().bot;
+
+// Dags att slå: personen trycker själv, datorn slår efter en liten stund.
+async function readyToRoll(say) {
+  setState('roll');
+  if (!isBot()) return speak(say);
+  await wait(1100);
+  roll();
 }
 const diceIcon = () => `<svg viewBox="0 0 40 40"><rect x="4" y="4" width="32" height="32" rx="8" fill="#fff" stroke="#4a2a00" stroke-width="3"/><circle cx="13" cy="13" r="3.5" fill="#4a2a00"/><circle cx="20" cy="20" r="3.5" fill="#4a2a00"/><circle cx="27" cy="27" r="3.5" fill="#4a2a00"/></svg>`;
 
 function startTurn() {
   renderScores();
   focusTile(me().pos);
-  setState('roll');
-  speak(`Din tur, ${me().name}!`);
+  readyToRoll(`Din tur, ${me().name}!`);
 }
 
 $('#actionBtn').onclick = () => {
+  if (isBot()) return;
   if (state === 'roll') roll();
   else if (state === 'draw') drawFrom(drawDeck);
 };
 $('#piles').onclick = e => {
   const pile = e.target.closest('.pile');
-  if (pile && state === 'draw' && pile.dataset.deck === drawDeck) drawFrom(drawDeck);
+  if (pile && !isBot() && state === 'draw' && pile.dataset.deck === drawDeck) drawFrom(drawDeck);
 };
 
 async function roll() {
@@ -306,8 +339,9 @@ async function onLand() {
   }
   if (FIGURES[r.type]) {
     setState('draw', r.type);
-    speak(`${FIGURES[r.type].name}! Tryck och dra ett kort.`);
-    return;
+    if (!isBot()) return speak(`${FIGURES[r.type].name}! Tryck och dra ett kort.`);
+    await wait(1200); // datorn "tänker" lite och drar sedan själv
+    return drawFrom(r.type);
   }
   await wait(500);
   endTurn();
@@ -371,16 +405,20 @@ function drawFrom(deck) {
   setTimeout(() => {
     c3.classList.add('flip');
     sfx.pop();
-    setTimeout(() => {
-      $('#cardButtons').hidden = false;
-      readCard('cards');
+    setTimeout(async () => {
+      if (!isBot()) { $('#cardButtons').hidden = false; readCard('cards'); return; }
+      // Datorn: läs upp kortet, vänta tills det är klart (minst en stund att läsa), tryck sedan Okej.
+      await Promise.all([readCard('cards'), wait(2800)]);
+      await wait(700);
+      okCard();
     }, 500);
   }, 900);
   card.deck = deck;
 }
 
 $('#cardSpeakBtn').onclick = () => readCard('always');
-$('#cardOkBtn').onclick = async () => {
+$('#cardOkBtn').onclick = () => okCard();
+async function okCard() {
   $('#cardOverlay').hidden = true;
   const before = me().baskets;
   const r = L.applyCard(game, card);
@@ -395,13 +433,11 @@ $('#cardOkBtn').onclick = async () => {
   }
   if (r.again) {
     await wait(300);
-    setState('roll');
-    speak('Slå igen!');
-    return;
+    return readyToRoll('Slå igen!');
   }
   await wait(900);
   endTurn();
-};
+}
 
 // ---------- Mål ----------
 async function finish(r) {
@@ -449,7 +485,7 @@ function showPodium() {
   const list = L.ranking(game);
   const order = [list[1], list[0], list[2], list[3]].filter(Boolean); // tvåan, ettan, trean, fyran
   $('#podiumList').innerHTML = order.map(({ player: p, rank }) =>
-    `<div class="step rank${rank}"><span class="pawn-big">${avatar(p.look, p.color)}</span><b>${esc(p.name)}</b>` +
+    `<div class="step rank${rank}"><span class="pawn-big">${figure(p, p.color)}</span><b>${esc(p.name)}</b>` +
     `<span class="score">${ART.basket}${p.baskets}</span><div class="block">${rank}</div></div>`).join('');
   $('#podium').hidden = false;
   fireworks(5000);
