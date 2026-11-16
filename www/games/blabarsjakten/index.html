@@ -68,6 +68,8 @@
         <div class="card-face card-front" id="cardFront"></div>
       </div>
     </div>
+    <div class="tap-hint" id="tapHint" hidden>👆 Tryck på kortet!</div>
+    <div id="pickedPile"></div>
     <div class="card-buttons" id="cardButtons" hidden>
       <button class="btn blue" id="cardSpeakBtn" aria-label="Läs igen">🔊</button>
       <button class="btn green" id="cardOkBtn">Okej!</button>
@@ -76,6 +78,13 @@
 
   <!-- Prispall -->
   <div class="overlay" id="podium" hidden>
+    <div class="pod-rays"></div>
+    <div class="curtain left"></div><div class="curtain right"></div>
+    <svg class="bunting" viewBox="0 0 1000 80" preserveAspectRatio="none">
+      <path d="M0 6 Q500 60 1000 6" fill="none" stroke="#fff4c9" stroke-width="3"/>
+      <g id="flags"></g>
+    </svg>
+    <div class="confetti" id="confetti"></div>
     <h1 class="title">Prispallen</h1>
     <div class="podium" id="podiumList"></div>
     <div class="row">

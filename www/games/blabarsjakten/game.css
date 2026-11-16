@@ -130,8 +130,6 @@ body[data-season="winter"] .world { background-color: #eef5fb; }
   background: radial-gradient(circle at 50% 35%, rgba(255,255,255,.4), transparent 60%), var(--c);
   border: 3px solid #ffe08a; box-shadow: inset 0 0 0 2px rgba(0,0,0,.15), 3px 3px 0 -1px #fff4c9, 6px 6px 0 -2px #e9c46a, 0 10px 16px rgba(0,0,0,.4); }
 .pile svg { width: 52px; height: 52px; }
-.pile.glow { animation: glow .9s ease-in-out infinite; }
-@keyframes glow { 50% { transform: translateY(-8px) scale(1.1); box-shadow: 0 0 0 6px #fff, 0 0 30px 10px var(--c); } }
 .actions { display: flex; gap: 14px; margin-left: auto; }
 .btn.action { min-width: 280px; min-height: 92px; font-size: 32px; margin-left: auto; }
 .btn.action svg { width: 54px; height: 54px; }
@@ -141,7 +139,6 @@ body[data-season="winter"] .world { background-color: #eef5fb; }
   background: linear-gradient(100deg, transparent, rgba(255,255,255,.65), transparent); animation: sweep 2.4s ease-in-out infinite; }
 @keyframes sweep { 0%, 40% { transform: translateX(0); } 100% { transform: translateX(450%); } }
 @keyframes pulse { 50% { transform: scale(1.06); } }
-.btn.action.draw { background: linear-gradient(#fff, var(--c)); color: #fff; text-shadow: 0 2px 0 rgba(0,0,0,.45); }
 
 /* ---------- Tärning ---------- */
 .dice-zone { position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none; background: radial-gradient(circle, rgba(0,0,0,.35), transparent 60%); }
@@ -186,17 +183,49 @@ body[data-season="winter"] .world { background-color: #eef5fb; }
 @keyframes floatUp { from { transform: translate(-50%, 0) scale(.6); } 20% { transform: translate(-50%, -20px) scale(1.3); } to { transform: translate(-50%, -110px); opacity: 0; } }
 
 /* ---------- Prispall och regler ---------- */
-.podium { display: flex; align-items: flex-end; justify-content: center; gap: 12px; flex-wrap: wrap; }
-.step { width: 150px; display: flex; flex-direction: column; align-items: center; gap: 6px; animation: rise .8s cubic-bezier(.2,.9,.3,1.2) backwards; }
+/* ---------- Prispallen: festscen med träpall ---------- */
+#podium { overflow: hidden; background: radial-gradient(ellipse at 50% 30%, #5a3d8a, #2a1748 55%, #120a22); }
+#podium > :not(.pod-rays, .curtain, .bunting, .confetti) { position: relative; z-index: 2; }
+.pod-rays { position: absolute; width: 1600px; height: 1600px; left: 50%; top: 45%; margin: -800px; pointer-events: none; opacity: .3;
+  background: repeating-conic-gradient(#ffe08a 0 8deg, transparent 8deg 18deg); animation: spin 30s linear infinite;
+  -webkit-mask: radial-gradient(circle, #000 10%, transparent 55%); mask: radial-gradient(circle, #000 10%, transparent 55%); }
+.curtain { position: absolute; top: 0; bottom: 0; width: 13%; z-index: 1; pointer-events: none;
+  background: repeating-linear-gradient(90deg, #b71c1c 0 18px, #8e1515 18px 28px, #c62828 28px 40px); box-shadow: 0 0 30px rgba(0,0,0,.6); }
+.curtain.left { left: 0; border-radius: 0 0 100% 0 / 0 0 30% 0; } .curtain.right { right: 0; border-radius: 0 0 0 100% / 0 0 0 30%; }
+.bunting { position: absolute; left: 0; top: 0; width: 100%; height: 80px; z-index: 1; pointer-events: none; }
+.confetti { position: absolute; inset: 0; z-index: 1; pointer-events: none; overflow: hidden; }
+.confetti i { position: absolute; top: -20px; width: 10px; height: 16px; border-radius: 2px; animation: fall linear infinite; }
+
+.podium { display: flex; align-items: flex-end; justify-content: center; gap: 6px; flex-wrap: wrap; filter: drop-shadow(0 20px 20px rgba(0,0,0,.5)); }
+.step { width: 160px; display: flex; flex-direction: column; align-items: center; animation: rise .8s cubic-bezier(.2,.9,.3,1.2) backwards; }
 .step:nth-child(2) { animation-delay: .3s; } .step:nth-child(3) { animation-delay: .6s; } .step:nth-child(4) { animation-delay: .9s; }
 @keyframes rise { from { transform: translateY(80px); opacity: 0; } }
-.step .pawn-big svg { width: 80px; height: 96px; }
-.step b { font-size: 24px; text-align: center; word-break: break-word; }
-.step .score { display: flex; align-items: center; gap: 4px; font-size: 24px; font-weight: 900; color: var(--gold-1); }
-.step .score svg { width: 36px; height: 36px; }
-.step .block { width: 100%; border-radius: 14px 14px 0 0; display: grid; place-items: center; font-size: 54px; font-weight: 900; color: #fff; text-shadow: 0 3px 0 rgba(0,0,0,.3);
-  background: linear-gradient(#ffe08a, #f4a923); border: 4px solid #fff4c9; border-bottom: 0; }
-.rank1 .block { height: 170px; } .rank2 .block { height: 120px; background: linear-gradient(#eef1f4, #aab4bf); } .rank3 .block { height: 90px; background: linear-gradient(#f2c49b, #c47a3d); } .rank4 .block { height: 60px; background: linear-gradient(#cfd8dc, #90a4ae); }
+.step .score { display: flex; align-items: center; gap: 4px; padding: 4px 14px 4px 6px; margin-bottom: 4px; border-radius: 999px;
+  background: linear-gradient(#fff8e1, #ffe08a); border: 3px solid #fff; color: #4a2a00; font-size: 26px; font-weight: 900; box-shadow: 0 4px 10px rgba(0,0,0,.35); }
+.step .score svg { width: 38px; height: 38px; }
+.rank1 .score { transform: scale(1.15); animation: bob 2s ease-in-out infinite; }
+.step .pawn-big { margin-bottom: -8px; position: relative; z-index: 1; }
+.step .pawn-big svg { width: 84px; height: 100px; display: block; }
+.rank1 .pawn-big svg { width: 100px; height: 120px; }
+/* Träblock: årsringar, ljus ovankant och mörkare sida. */
+.step .block { width: 100%; position: relative; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 6px; padding-top: 22px;
+  border-radius: 10px 10px 0 0; border: 3px solid #5b3417; border-bottom: 0;
+  background:
+    repeating-linear-gradient(92deg, rgba(60,30,10,.18) 0 2px, transparent 2px 11px, rgba(255,230,190,.08) 11px 13px, transparent 13px 23px),
+    radial-gradient(ellipse at 30% 60%, rgba(60,30,10,.25) 0 6%, transparent 7%),
+    linear-gradient(180deg, #d79a5c, #a8662f 60%, #8a5124);
+  box-shadow: inset 0 -20px 30px rgba(0,0,0,.25), inset 6px 0 10px rgba(255,255,255,.12), inset -10px 0 14px rgba(0,0,0,.25); }
+.step .block::before { content: ""; position: absolute; left: -3px; right: -3px; top: -12px; height: 14px; border-radius: 8px 8px 2px 2px;
+  background: linear-gradient(#f0c08a, #c98a4b); border: 3px solid #5b3417; border-bottom: 0; }
+.medal { width: 58px; height: 58px; border-radius: 50%; display: grid; place-items: center; font-size: 32px; font-weight: 900; color: #fff; text-shadow: 0 2px 0 rgba(0,0,0,.35);
+  border: 4px solid rgba(255,255,255,.8); box-shadow: 0 4px 8px rgba(0,0,0,.4), inset 0 3px 6px rgba(255,255,255,.6), inset 0 -4px 6px rgba(0,0,0,.25); background: #90a4ae; }
+.rank1 .medal { background: radial-gradient(circle at 35% 30%, #fff3b0, #f4b400 60%, #c98a00); width: 68px; height: 68px; font-size: 38px; }
+.rank2 .medal { background: radial-gradient(circle at 35% 30%, #ffffff, #c0c8d0 60%, #8a96a2); }
+.rank3 .medal { background: radial-gradient(circle at 35% 30%, #ffd9b0, #cd7f32 60%, #8a5220); }
+.plate { max-width: 90%; padding: 3px 10px; border-radius: 8px; background: linear-gradient(#fff3d6, #e8c88f); border: 2px solid #5b3417;
+  color: #3b2414; font-size: 18px; font-weight: 900; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; box-shadow: 0 2px 0 rgba(0,0,0,.3); }
+.rank1 .block { height: 200px; } .rank2 .block { height: 150px; } .rank3 .block { height: 115px; } .rank4 .block { height: 95px; }
+@media (max-height: 640px) { .rank1 .block { height: 150px; } .rank2 .block { height: 115px; } .rank3 .block { height: 95px; } .rank4 .block { height: 85px; } }
 .row { display: flex; gap: 16px; flex-wrap: wrap; justify-content: center; }
 .panel { width: min(640px, 100%); max-height: 100%; overflow: auto; background: var(--parchment); color: var(--ink); border-radius: 26px; border: 8px solid var(--gold-2); padding: 22px 26px; }
 .panel h2 { margin: 0 0 8px; font-size: 32px; }
@@ -245,3 +274,13 @@ body[data-season="winter"] .world { background-color: #eef5fb; }
   .piles { display: none; }
   .btn.action { margin: 0 auto; }
 }
+
+/* ---------- Kort: tryck för att vända ---------- */
+.card3d.tappable { cursor: pointer; }
+.card3d.tappable .card-inner { animation: wiggle 1.8s ease-in-out .6s infinite; }
+@keyframes wiggle { 0%, 70%, 100% { transform: rotate(0) scale(1); } 76% { transform: rotate(-3deg) scale(1.03); } 84% { transform: rotate(3deg) scale(1.03); } 92% { transform: rotate(-1deg); } }
+.card3d.tappable .card-back { box-shadow: 0 0 0 4px rgba(255,255,255,.6), 0 0 40px 10px var(--c), 0 20px 40px rgba(0,0,0,.6); }
+.tap-hint { position: relative; font-size: 28px; font-weight: 900; color: #fff; text-shadow: 0 3px 0 rgba(0,0,0,.4); animation: pulse 1.2s ease-in-out infinite; }
+/* Högen kortet kom ifrån: lyser och växer ovanpå mörkret. */
+.pile.picked { position: fixed; z-index: 1; pointer-events: none; transform-origin: bottom left; animation: picked 1.4s ease-in-out infinite; }
+@keyframes picked { 0%, 100% { transform: scale(1.25); box-shadow: 0 0 0 4px #fff, 0 0 24px 8px var(--c); } 50% { transform: scale(1.32); box-shadow: 0 0 0 4px #fff, 0 0 36px 14px var(--c); } }

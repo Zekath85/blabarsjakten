@@ -21,14 +21,14 @@ const VOICE = {
 if (process.argv.includes('--all')) rmSync(OUT, { recursive: true, force: true });
 mkdirSync(OUT, { recursive: true });
 
-async function say(text, file, [voice, opts]) {
-  if (existsSync(`${OUT}/${file}.mp3`)) return;
+async function say(text, file, [voice, opts], out = OUT) {
+  if (existsSync(`${out}/${file}.mp3`)) return;
   for (let attempt = 1; ; attempt++) {
     const tts = new MsEdgeTTS();
     try {
       await tts.setMetadata(voice, OUTPUT_FORMAT.AUDIO_24KHZ_48KBITRATE_MONO_MP3);
-      const { audioFilePath } = await tts.toFile(OUT, text, opts);
-      renameSync(audioFilePath, `${OUT}/${file}.mp3`);
+      const { audioFilePath } = await tts.toFile(out, text, opts);
+      renameSync(audioFilePath, `${out}/${file}.mp3`);
       console.log('✓', file);
       await new Promise(r => setTimeout(r, 700));
       return;
@@ -48,3 +48,7 @@ for (const [deck, cards] of Object.entries(DECKS))
 const html = readFileSync('www/games/blabarsjakten/index.html', 'utf8');
 const rules = html.split('id="rulesText">')[1].split('</div>')[0].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
 await say(rules, 'rules', VOICE.rules);
+
+// Gemensamma repliker för alla spel (shared/dialog.js m.fl.).
+mkdirSync('www/shared/voice', { recursive: true });
+await say('Vill du avbryta spelet och gå till menyn?', 'quit', VOICE.rules, 'www/shared/voice');

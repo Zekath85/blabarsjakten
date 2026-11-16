@@ -3,6 +3,7 @@ import { FIGURES, DECKS } from './cards.js';
 import { ART, puzzlePath, SEASONS } from './art.js';
 import { speak, stop, playClip, sfx, settings } from '../../shared/audio.js';
 import { avatar, robot, OPTIONS, DEFAULT_LOOKS } from '../../shared/avatar.js';
+import { confirmQuit } from '../../shared/dialog.js';
 
 // Inspelad röst för kortet (filer från "npm run voices").
 const readCard = kind => playClip(`voice/${card.deck}-${DECKS[card.deck].indexOf(card)}.mp3`, card.text, FIGURES[card.deck].voice, kind);
@@ -29,7 +30,7 @@ const lineup = () => bot
   : names.slice(0, count).map((name, i) => ({ name, look: looks[i] }));
 // Figur för en spelare: barnet man skapat, eller roboten.
 const figure = (p, color, headOnly = false) => (p.bot ? robot(color, headOnly) : avatar(p.look, color, headOnly));
-let board, game, state = 'idle', drawDeck = null, card = null, lastCam = null;
+let board, game, state = 'idle', card = null, lastCam = null;
 const shown = []; // korgar som visas i topplisten, för att se ändringar
 
 // ---------- Skärmar ----------
@@ -254,22 +255,12 @@ function renderScores() {
   document.querySelectorAll('.pawn').forEach((el, i) => el.classList.toggle('me', i === game.current && !game.over));
 }
 
-function setState(s, deck = null) {
+function setState(s) {
   state = s;
-  drawDeck = deck;
   const btn = $('#actionBtn');
   btn.disabled = s === 'busy';
-  btn.className = 'btn action' + (s === 'busy' ? '' : ' pulse') + (s === 'draw' ? ' draw' : '');
-  btn.style.removeProperty('--c');
-  document.querySelectorAll('.pile').forEach(p => p.classList.toggle('glow', p.dataset.deck === deck));
-  document.querySelectorAll('.tile.lit').forEach(t => t.classList.remove('lit'));
-  if (s === 'roll') btn.innerHTML = `${diceIcon()} Slå tärningen!`;
-  if (s === 'busy') btn.innerHTML = 'Vänta…';
-  if (s === 'draw') {
-    btn.style.setProperty('--c', FIGURES[deck].color);
-    btn.innerHTML = `${ART[deck]} Dra kort!`;
-    $(`#tile${me().pos}`).classList.add('lit');
-  }
+  btn.className = 'btn action' + (s === 'busy' ? '' : ' pulse');
+  btn.innerHTML = s === 'roll' ? `${diceIcon()} Slå tärningen!` : 'Vänta…';
   // Datorns tur: knappen är grå och visar att datorn spelar.
   if (game && !game.over && me().bot) {
     btn.disabled = true;
@@ -295,13 +286,7 @@ function startTurn() {
 }
 
 $('#actionBtn').onclick = () => {
-  if (isBot()) return;
-  if (state === 'roll') roll();
-  else if (state === 'draw') drawFrom(drawDeck);
-};
-$('#piles').onclick = e => {
-  const pile = e.target.closest('.pile');
-  if (pile && !isBot() && state === 'draw' && pile.dataset.deck === drawDeck) drawFrom(drawDeck);
+  if (!isBot() && state === 'roll') roll();
 };
 
 async function roll() {
@@ -338,10 +323,8 @@ async function onLand() {
     return endTurn();
   }
   if (FIGURES[r.type]) {
-    setState('draw', r.type);
-    if (!isBot()) return speak(`${FIGURES[r.type].name}! Tryck och dra ett kort.`);
-    await wait(1200); // datorn "tänker" lite och drar sedan själv
-    return drawFrom(r.type);
+    await wait(400);
+    return showCard(r.type);
   }
   await wait(500);
   endTurn();
@@ -387,39 +370,54 @@ function burst(n, colors) {
 }
 
 // ---------- Kort ----------
-function drawFrom(deck) {
+// Kortet flyger fram med baksidan upp. Man trycker på kortet för att vända det.
+async function showCard(deck) {
   setState('busy');
   card = L.drawCard(game, deck);
+  card.deck = deck;
   const f = FIGURES[deck];
   const ov = $('#cardOverlay');
   ov.style.setProperty('--c', f.color);
   $('#cardBack').innerHTML = ART[deck];
   $('#cardFront').innerHTML = `<div class="head"><span>${ART[deck]}</span><b>${f.name}</b></div><p>${card.text}</p>`;
   $('#cardButtons').hidden = true;
+  $('#tapHint').hidden = isBot();
+  // Högen kortet kom ifrån lyser och växer nere till vänster (ritas ovanpå mörkret).
+  const pile = $(`.pile[data-deck="${deck}"]`), r = pile?.getBoundingClientRect();
+  $('#pickedPile').innerHTML = r?.width
+    ? `<div class="pile picked" style="--c:${f.color};left:${r.left}px;top:${r.top}px">${ART[deck]}</div>` : '';
+  $(`#tile${me().pos}`).classList.add('lit');
   const c3 = $('#card3d');
   c3.classList.remove('flip');
+  c3.classList.toggle('tappable', !isBot());
   ov.hidden = false;
-  // starta om "kortet flyger in"
-  c3.style.animation = 'none'; void c3.offsetWidth; c3.style.animation = '';
+  c3.style.animation = 'none'; void c3.offsetWidth; c3.style.animation = ''; // starta om "kortet flyger in"
   sfx.card();
-  setTimeout(() => {
-    c3.classList.add('flip');
-    sfx.pop();
-    setTimeout(async () => {
-      if (!isBot()) { $('#cardButtons').hidden = false; readCard('cards'); return; }
-      // Datorn: läs upp kortet, vänta tills det är klart (minst en stund att läsa), tryck sedan Okej.
-      await Promise.all([readCard('cards'), wait(2800)]);
-      await wait(700);
-      okCard();
-    }, 500);
-  }, 900);
-  card.deck = deck;
+  if (isBot()) { await wait(1500); flipCard(); }
 }
+
+async function flipCard() {
+  const c3 = $('#card3d');
+  if (c3.classList.contains('flip')) return;
+  c3.classList.add('flip');
+  c3.classList.remove('tappable');
+  $('#tapHint').hidden = true;
+  sfx.pop();
+  await wait(500);
+  if (!isBot()) { $('#cardButtons').hidden = false; readCard('cards'); return; }
+  // Datorn: läs upp kortet, vänta tills det är klart (minst en stund att läsa), tryck sedan Okej.
+  await Promise.all([readCard('cards'), wait(2800)]);
+  await wait(700);
+  okCard();
+}
+$('#card3d').onclick = () => { if (!isBot()) flipCard(); };
 
 $('#cardSpeakBtn').onclick = () => readCard('always');
 $('#cardOkBtn').onclick = () => okCard();
 async function okCard() {
   $('#cardOverlay').hidden = true;
+  $('#pickedPile').innerHTML = '';
+  document.querySelectorAll('.tile.lit').forEach(t => t.classList.remove('lit'));
   const before = me().baskets;
   const r = L.applyCard(game, card);
   renderScores();
@@ -484,9 +482,19 @@ function showPodium() {
   renderScores();
   const list = L.ranking(game);
   const order = [list[1], list[0], list[2], list[3]].filter(Boolean); // tvåan, ettan, trean, fyran
+  // Poängen överst, sedan figuren, sedan träpallen med medalj och namnskylt.
   $('#podiumList').innerHTML = order.map(({ player: p, rank }) =>
-    `<div class="step rank${rank}"><span class="pawn-big">${figure(p, p.color)}</span><b>${esc(p.name)}</b>` +
-    `<span class="score">${ART.basket}${p.baskets}</span><div class="block">${rank}</div></div>`).join('');
+    `<div class="step rank${rank}"><span class="score">${ART.basket}<b>${p.baskets}</b></span>` +
+    `<span class="pawn-big">${figure(p, p.color)}</span>` +
+    `<div class="block"><span class="medal">${rank}</span><span class="plate">${esc(p.name)}</span></div></div>`).join('');
+  // Vimplar längs snöret och konfetti som faller.
+  const FLAG = ['#e53935', '#fbc02d', '#43a047', '#1e88e5', '#8e24aa', '#fb8c00'];
+  $('#flags').innerHTML = Array.from({ length: 16 }, (_, i) => {
+    const x = 30 + i * 62, y = 6 + 54 * 4 * (x / 1000) * (1 - x / 1000) * 0.5;
+    return `<path d="M${x - 18} ${y} L${x + 18} ${y} L${x} ${y + 34}Z" fill="${FLAG[i % FLAG.length]}"/>`;
+  }).join('');
+  $('#confetti').innerHTML = Array.from({ length: 28 }, (_, i) =>
+    `<i style="left:${Math.random() * 100}%;background:${FLAG[i % FLAG.length]};animation-delay:${-Math.random() * 6}s;animation-duration:${4 + Math.random() * 4}s"></i>`).join('');
   $('#podium').hidden = false;
   fireworks(5000);
   sfx.win();
@@ -499,8 +507,8 @@ $('#againBtn').onclick = () => { $('#podium').hidden = true; renderSetup(); show
 $('#menuBtn').onclick = () => (location.href = '../../index.html');
 
 // ---------- Knappar högst upp ----------
-$('#backBtn').onclick = () => {
-  if (game && !game.over && !confirm('Vill du sluta spelet och gå till menyn?')) return;
+$('#backBtn').onclick = async () => {
+  if (game && !game.over && !(await confirmQuit('Blåbärsjakten'))) return;
   location.href = '../../index.html';
 };
 const soundIcon = () => ($('#soundBtn').innerHTML = `<svg viewBox="0 0 40 40"><path d="M6 15 H13 L22 7 V33 L13 25 H6Z" fill="#fff" stroke="#fff" stroke-width="2" stroke-linejoin="round"/>${
