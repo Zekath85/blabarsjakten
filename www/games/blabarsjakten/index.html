@@ -13,10 +13,12 @@
 </head>
 <body>
   <button class="icon-btn" id="backBtn" style="left:12px" aria-label="Till menyn">
-    <svg viewBox="0 0 40 40"><path d="M24 6 L10 20 L24 34" fill="none" stroke="#4a2a00" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    <svg viewBox="0 0 40 40"><path d="M24 8 L12 20 L24 32" fill="none" stroke="#fff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/></svg>
   </button>
-  <button class="icon-btn" id="soundBtn" style="right:12px" aria-label="Ljud">🔊</button>
-  <button class="icon-btn" id="rulesBtn" style="right:96px" aria-label="Regler">📜</button>
+  <button class="icon-btn" id="soundBtn" style="right:12px" aria-label="Ljud"></button>
+  <button class="icon-btn" id="rulesBtn" style="right:96px" aria-label="Regler">
+    <svg viewBox="0 0 40 40"><path d="M5 9 Q13 5 20 10 Q27 5 35 9 V32 Q27 28 20 33 Q13 28 5 32Z" fill="rgba(255,255,255,.2)" stroke="#fff" stroke-width="3" stroke-linejoin="round"/><path d="M20 10 V33" stroke="#fff" stroke-width="3"/></svg>
+  </button>
 
   <!-- Välj spelare -->
   <section class="screen" id="setup">
@@ -33,14 +35,19 @@
   <!-- Spelplanen (visning av bana och själva spelet) -->
   <section class="screen" id="play" hidden>
     <div class="scores" id="scores"></div>
-    <div class="viewport" id="viewport">
-      <div class="world" id="world"></div>
-      <div class="dice-zone" id="diceZone" hidden>
-        <div class="dice-wrap"><div class="cube" id="cube"></div></div>
-        <div class="dice-num" id="diceNum"></div>
-        <div class="sparks" id="sparks"></div>
+    <div class="board-wrap">
+      <div class="viewport" id="viewport">
+        <div class="world" id="world"></div>
+        <div class="weather" id="weather"></div>
+        <div class="vignette"></div>
+        <div class="dice-zone" id="diceZone" hidden>
+          <div class="dice-wrap"><div class="cube" id="cube"></div></div>
+          <div class="sparks" id="sparks"></div>
+        </div>
+        <div class="hint" id="hint" hidden></div>
+        <div class="season-banner" id="seasonBanner" hidden></div>
       </div>
-      <div class="hint" id="hint" hidden></div>
+      <div id="corners"></div>
     </div>
     <footer class="bar">
       <div class="piles" id="piles"></div>

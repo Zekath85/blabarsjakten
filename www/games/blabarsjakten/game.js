@@ -1,6 +1,6 @@
 import * as L from './logic.js';
 import { FIGURES, DECKS } from './cards.js';
-import { ART, puzzlePath } from './art.js';
+import { ART, puzzlePath, SEASONS } from './art.js';
 import { speak, stop, playClip, sfx, settings } from '../../shared/audio.js';
 import { avatar, OPTIONS, DEFAULT_LOOKS } from '../../shared/avatar.js';
 
@@ -122,7 +122,7 @@ function newBoard() {
     for (let x = 0; x < L.GRID; x++)
       if (!used.has(y * L.GRID + x) && Math.random() < 0.28) {
         const art = ['tree', 'tree', 'bush', 'flower'][Math.floor(Math.random() * 4)];
-        deco += `<div class="deco" style="left:${x * CELL}px;top:${y * CELL}px">${ART[art]}</div>`;
+        deco += `<div class="deco" data-kind="${art}" style="left:${x * CELL}px;top:${y * CELL}px">${ART[art]}</div>`;
       }
   const shapes = board.map((t, i) => puzzlePath(dirTo(t, board[i + 1]), dirTo(t, board[i - 1])));
   const at = t => `left:${t.x * CELL}px;top:${t.y * CELL}px`;
@@ -136,7 +136,8 @@ function newBoard() {
     `${tileIcon(t)}</div>`).join('');
   const world = $('#world');
   world.style.width = world.style.height = W + 'px';
-  world.innerHTML = deco + bases + tiles + '<div id="pawns"></div>';
+  world.innerHTML = TILE_GRADIENT + deco + bases + tiles + '<div id="pawns"></div>';
+  setSeason(null); // banvalet har neutral bakgrund
   $('#scores').innerHTML = '';
   $('#piles').innerHTML = '';
   $('#previewActions').hidden = false;
@@ -146,6 +147,26 @@ function newBoard() {
   overview();
 }
 
+// Mjuk ljusgradient på pusselbitarnas ovansida (en gång för alla bitar).
+const TILE_GRADIENT = '<svg width="0" height="0" style="position:absolute"><defs><radialGradient id="tileTop" cx=".38" cy=".3" r=".95">' +
+  '<stop offset="0" stop-color="#fff6d2"/><stop offset=".55" stop-color="#f6d77a"/><stop offset="1" stop-color="#e4ad4a"/></radialGradient></defs></svg>';
+
+// Årstid: byter träd och blommor, väder (snö, löv, kronblad, ljus) och hörn-dekor runt planen.
+function setSeason(key) {
+  const S = SEASONS[key];
+  document.body.dataset.season = key || '';
+  document.querySelectorAll('.deco').forEach(d => (d.innerHTML = (S || ART)[d.dataset.kind]));
+  $('#weather').innerHTML = S ? Array.from({ length: 16 }, () =>
+    `<i style="left:${Math.random() * 100}%;animation-delay:${-Math.random() * 14}s;animation-duration:${9 + Math.random() * 7}s;--s:${0.6 + Math.random() * 0.8}"></i>`).join('') : '';
+  $('#corners').innerHTML = S ? [0, 1, 2, 3].map(c => `<div class="corner c${c}">${S.bush}${S.extra}${S.flower}</div>`).join('') : '';
+  if (!S) return;
+  const b = $('#seasonBanner');
+  b.textContent = S.name + ' i skogen';
+  b.hidden = false;
+  b.style.animation = 'none'; void b.offsetWidth; b.style.animation = '';
+  setTimeout(() => (b.hidden = true), 2600);
+}
+
 function camera(x, y, zoom) {
   lastCam = [x, y, zoom];
   const vp = $('#viewport');
@@ -153,7 +174,7 @@ function camera(x, y, zoom) {
   const fit = Math.min(vw, vh) / W * 0.96;
   // inzoomat: planen fyller hela rutan, och kameran stannar vid kanterna
   const s = zoom ? Math.max(fit * 2, vw / W, vh / W) : fit;
-  const fitAxis = (c, v) => (W * s > v ? Math.min(0, Math.max(v - W * s, v / 2 - c * s)) : v / 2 - c * s);
+  const fitAxis = (c, v) => (W * s >= v - 1 ?Math.min(0, Math.max(v - W * s, v / 2 - c * s)) : v / 2 - c * s);
   $('#world').style.transform = `translate(${fitAxis(x, vw)}px, ${fitAxis(y, vh)}px) scale(${s})`;
 }
 const overview = () => camera(W / 2, W / 2, false);
@@ -166,6 +187,8 @@ $('#startBtn').onclick = startGame;
 // ---------- Spelet ----------
 function startGame() {
   sfx.good();
+  const keys = Object.keys(SEASONS);
+  setSeason(keys[Math.floor(Math.random() * keys.length)]);
   game = L.createGame(names.slice(0, count), board);
   shown.length = 0;
   game.players.forEach(p => shown.push(p.baskets));
@@ -313,12 +336,10 @@ async function rollDice(n) {
   void cube.offsetWidth;
   cube.style.transform = `rotateX(${spinX + FACE[n][0]}deg) rotateY(${spinY + FACE[n][1]}deg)`;
   await wait(1200);
-  $('#diceNum').textContent = n;
   zone.classList.add('landed');
   sfx.land();
   if (n === 6) sfx.six();
   burst(n === 6 ? 26 : 12, n === 6 ? ['#ffe08a', '#fff', '#ffd54f', '#b2ff59'] : [me().color, '#fff']);
-  speak(NUM[n - 1][0].toUpperCase() + NUM[n - 1].slice(1) + '!');
   await wait(1100);
   zone.hidden = true;
 }
@@ -370,7 +391,7 @@ $('#cardOkBtn').onclick = async () => {
   if (r.steps) {
     await wait(400);
     await walk(r.steps);
-    if (board[me().pos].type === 'goal') return finish(L.land(game));
+    return onLand(); // den nya rutan gäller också: nytt kort, blåbär eller mål
   }
   if (r.again) {
     await wait(300);
@@ -446,7 +467,10 @@ $('#backBtn').onclick = () => {
   if (game && !game.over && !confirm('Vill du sluta spelet och gå till menyn?')) return;
   location.href = '../../index.html';
 };
-const soundIcon = () => ($('#soundBtn').textContent = ['cards', 'narrator', 'sfx'].some(settings.get) ? '🔊' : '🔇');
+const soundIcon = () => ($('#soundBtn').innerHTML = `<svg viewBox="0 0 40 40"><path d="M6 15 H13 L22 7 V33 L13 25 H6Z" fill="#fff" stroke="#fff" stroke-width="2" stroke-linejoin="round"/>${
+  ['cards', 'narrator', 'sfx'].some(settings.get)
+    ? '<path d="M27 14 Q31 20 27 26 M31 10 Q38 20 31 30" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round"/>'
+    : '<path d="M28 15 L36 25 M36 15 L28 25" stroke="#ff8a80" stroke-width="3.5" stroke-linecap="round"/>'}</svg>`);
 $('#soundBtn').onclick = () => {
   document.querySelectorAll('[data-pref]').forEach(cb => (cb.checked = settings.get(cb.dataset.pref)));
   $('#soundPanel').hidden = false;
