@@ -432,3 +432,19 @@ body.tilt .deco svg { transform: none; }
 body.calm .weather, body.calm .rays, body.calm .pod-rays, body.calm .confetti { display: none; }
 body.calm .sway, body.calm .pawn .hop:not(.go), body.calm .btn.action.pulse, body.calm .btn.action.pulse::after,
 body.calm .figures span, body.calm .recenter::before, body.calm .tile.lit .ico { animation: none; }
+
+/* Räv-nivå: 1, 2 eller 3 rävhuvuden. */
+#foxLevels { margin-right: 0; }
+.fox-level .foxes { display: flex; height: 34px; align-items: center; }
+.fox-level .foxes svg { width: 26px; height: 26px; margin: 0 -4px; }
+.fox-level small { font-size: 14px; }
+
+/* Gyllene kortet: guldkant, gyllene strålar och gnistor. */
+#cardOverlay.golden { background: radial-gradient(circle at 50% 45%, rgba(255, 213, 79, .4), rgba(30, 20, 0, .9) 70%); }
+#cardOverlay.golden .rays { opacity: .6; background: repeating-conic-gradient(#ffe082 0 8deg, transparent 8deg 16deg); animation-duration: 8s; }
+#cardOverlay.golden .card-back { background: radial-gradient(circle at 50% 35%, #fff8e1, #ffd54f 50%, #e0a000); }
+#cardOverlay.golden .card-face { border-color: #fff3b0 #f4b400 #b07d00 #ffe082; box-shadow: 0 0 40px 12px rgba(255, 213, 79, .8), 0 20px 40px rgba(0,0,0,.5); }
+#cardOverlay.golden .card-front .head { background: linear-gradient(#ffe082, #f4b400); }
+#cardOverlay.golden .card3d { animation: cardIn .55s cubic-bezier(.2,.9,.3,1.2), shine 1.6s .6s ease-in-out infinite; }
+@keyframes shine { 50% { filter: brightness(1.15); } }
+body.calm #cardOverlay.golden .card3d { animation: cardIn .55s cubic-bezier(.2,.9,.3,1.2); }

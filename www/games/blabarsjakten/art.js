@@ -65,6 +65,11 @@ export const ART = {
   bush: svg(`<circle cx="34" cy="62" r="20" fill="#66bb6a"/><circle cx="62" cy="60" r="22" fill="#4caf50"/><circle cx="50" cy="48" r="20" fill="#81c784"/>
     <circle cx="40" cy="58" r="4" fill="#3d4fb8"/><circle cx="58" cy="50" r="4" fill="#3d4fb8"/><circle cx="66" cy="64" r="4" fill="#3d4fb8"/>`),
 
+  // Det gyllene kortet: en glittrande stjärna.
+  golden: svg(`<path d="M50 8 L61 36 L92 38 L68 57 L76 88 L50 71 L24 88 L32 57 L8 38 L39 36Z" fill="#ffd54f" stroke="#b07d00" stroke-width="3" stroke-linejoin="round"/>
+    <path d="M50 20 L57 38 L76 39 L61 51 L66 70 L50 60" fill="#fff59d" opacity=".8"/>
+    <circle cx="84" cy="16" r="4" fill="#fff"/><circle cx="16" cy="22" r="3" fill="#fff"/><circle cx="88" cy="70" r="3" fill="#fff"/>`),
+
   flower: svg(`<g fill="#fff59d"><circle cx="50" cy="34" r="12"/><circle cx="66" cy="50" r="12"/><circle cx="50" cy="66" r="12"/><circle cx="34" cy="50" r="12"/></g><circle cx="50" cy="50" r="9" fill="#ff8f00"/>`),
 };
 

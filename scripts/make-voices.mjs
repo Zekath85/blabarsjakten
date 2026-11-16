@@ -14,6 +14,7 @@ const VOICE = {
   owl:      [SOFIE,   { rate: '-8%' }],
   squirrel: [SOFIE,   { rate: '+8%', pitch: '+6%' }],
   hedgehog: [MATTIAS, { rate: '-10%', pitch: '-6%' }],
+  golden:   [SOFIE,   { rate: '-2%', pitch: '+4%' }],
   rules:    [MATTIAS, { rate: '-8%' }],
 };
 
@@ -58,6 +59,9 @@ const LINES = {
   berry1: 'Blåbär! Du får en korg.',
   berry2: 'Blåbär! Du får två korgar.',
   berry3: 'Blåbär! Du får tre korgar.',
+  berry4: 'Blåbär! Du får fyra korgar.',
+  extra: 'Och en extra korg, för att du ligger efter!',
+  golden: 'Oj! Ett gyllene kort!',
   bot: 'Nu är det datorns tur.',
   board: 'Här är spelplanen. Tryck på starta när ni är redo.',
   win: 'Grattis till vinnaren! Bra spelat allihop!',

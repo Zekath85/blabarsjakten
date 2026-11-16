@@ -10,6 +10,8 @@ export const FIGURES = {
   squirrel: { name: 'Ekorren Kvick',   kind: 'Snabba kort', color: '#3a8ee6', voice: { pitch: 1.15, rate: 1.08 } },
   hedgehog: { name: 'Igelkotten Pigg', kind: 'Kloka kort',  color: '#5bb04a', voice: { pitch: 0.95, rate: 0.92 } },
 };
+// Det gyllene kortet: sällsynt och extra bra. Har ingen egen ruta eller hög.
+export const GOLDEN = { name: 'Gyllene kortet', color: '#f4b400', voice: { pitch: 1.1, rate: 0.95 } };
 
 const c = (text, type, n) => ({ text, effect: { type, n } });
 
@@ -85,4 +87,15 @@ export const DECKS = {
     c('Igelkotten Pigg bjuder alla på te och kakor. Alla spelare får en korg.', 'all', 1),
     c('Igelkotten Pigg har hittat en fyrklöver. Det betyder tur! Du får en korg.', 'gain', 1),
   ],
+  golden: [
+    c('Du hittade det gyllene kortet! En hel hink full med blåbär. Du får fem korgar!', 'gain', 5),
+    c('Det gyllene kortet glittrar och gnistrar! Du får fyra korgar.', 'gain', 4),
+    c('Det gyllene kortet! En regnbåge visar vägen. Gå fem steg framåt.', 'move', 5),
+    c('Det gyllene kortet! Hela skogen har fest. Alla spelare får två korgar.', 'all', 2),
+    c('Det gyllene kortet! En stjärna föll ner i din korg. Du får tre korgar.', 'gain', 3),
+    c('Det gyllene kortet! Ett stjärnfall ger dig tur. Slå tärningen igen!', 'again'),
+  ],
 };
+
+// Varje kort vet vilken hög det hör till (används för röst och utseende).
+for (const [deck, list] of Object.entries(DECKS)) list.forEach(card => (card.deck = deck));

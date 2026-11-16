@@ -1,5 +1,5 @@
 import * as L from './logic.js';
-import { FIGURES, DECKS } from './cards.js';
+import { FIGURES, DECKS, GOLDEN } from './cards.js';
 import { ART, puzzlePath, SEASONS } from './art.js';
 import { stop, playClip, sfx, settings } from '../../shared/audio.js';
 import { avatar, robot, OPTIONS, DEFAULT_LOOKS } from '../../shared/avatar.js';
@@ -11,7 +11,7 @@ import { ICONS, medal, sizeIcon, fillIcons } from '../../shared/icons.js';
 const LINE_TEXT = { turn: 'Din tur! Slå tärningen.', again: 'Slå igen!', tap: 'Tryck på kortet.', bot: 'Nu är det datorns tur.',
   board: 'Här är spelplanen.', win: 'Grattis till vinnaren!', tie: 'Det blev lika!' };
 const say = (key, text = LINE_TEXT[key]) => playClip(`voice/line-${key}.mp3`, text, undefined, 'guide');
-const readCard = kind => playClip(`voice/${card.deck}-${DECKS[card.deck].indexOf(card)}.mp3`, card.text, FIGURES[card.deck].voice, kind);
+const readCard = kind => playClip(`voice/${card.deck}-${DECKS[card.deck].indexOf(card)}.mp3`, card.text, (FIGURES[card.deck] || GOLDEN).voice, kind);
 
 const $ = s => document.querySelector(s);
 const wait = ms => new Promise(r => setTimeout(r, ms));
@@ -27,9 +27,10 @@ let looks = DEFAULT_LOOKS.map(l => ({ ...l }));
 let count = 2;
 let bot = false, botName = 'Robo'; // bot: en spelare mot datorn
 let mapSize = 'medium'; // liten, mellan eller stor karta
+let foxLevel = 'normal'; // snäll, vanlig eller busig: hur många rävrutor
 // Kom ihåg namn och figurer till nästa gång.
-try { ({ names, looks, count, bot, botName, mapSize } = { names, looks, count, bot, botName, mapSize, ...JSON.parse(localStorage.getItem('bbj-players') || '{}') }); } catch {}
-const savePlayers = () => { try { localStorage.setItem('bbj-players', JSON.stringify({ names, looks, count, bot, botName, mapSize })); } catch {} };
+try { ({ names, looks, count, bot, botName, mapSize, foxLevel } = { names, looks, count, bot, botName, mapSize, foxLevel, ...JSON.parse(localStorage.getItem('bbj-players') || '{}') }); } catch {}
+const savePlayers = () => { try { localStorage.setItem('bbj-players', JSON.stringify({ names, looks, count, bot, botName, mapSize, foxLevel })); } catch {} };
 // Vilka som spelar: antingen 2–4 personer, eller en person + datorn.
 const lineup = () => bot
   ? [{ name: names[0], look: looks[0] }, { name: botName, bot: true }]
@@ -139,7 +140,7 @@ function tileIcon(t) {
 }
 
 function newBoard() {
-  board = L.makeBoard(Math.random, mapSize);
+  board = L.makeBoard(Math.random, mapSize, foxLevel);
   const G = board.grid;
   W = G * CELL;
   renderSizes();
@@ -260,7 +261,18 @@ function renderSizes() {
   const players = lineup().length;
   $('#sizes').innerHTML = Object.entries(L.SIZES).map(([key, z]) =>
     `<button class="size ${key === mapSize ? 'on' : ''}" data-size="${key}" aria-label="${z.name} karta">${sizeIcon({ small: 2, medium: 3, large: 4 }[key])}<small>${ICONS.clock}${L.estimateMinutes(key, players)} min</small></button>`).join('');
+  const FOX_NAME = { kind: 'Snäll räv', normal: 'Vanlig räv', sly: 'Busig räv' };
+  $('#foxLevels').innerHTML = Object.keys(L.FOX_LEVELS).map((lvl, i) =>
+    `<button class="size fox-level ${lvl === foxLevel ? 'on' : ''}" data-fox="${lvl}" aria-label="${FOX_NAME[lvl]}"><span class="foxes">${ART.fox.repeat(i + 1)}</span><small>${FOX_NAME[lvl].split(' ')[0]}</small></button>`).join('');
 }
+$('#foxLevels').onclick = e => {
+  const lvl = e.target.closest('.size')?.dataset.fox;
+  if (!lvl || lvl === foxLevel) return;
+  foxLevel = lvl;
+  savePlayers();
+  sfx.pop();
+  newBoard();
+};
 $('#sizes').onclick = e => {
   const size = e.target.closest('.size')?.dataset.size;
   if (!size || size === mapSize) return;
@@ -428,8 +440,8 @@ async function onLand() {
   if (r.type === 'goal') return finish(r);
   if (r.type === 'berry') {
     sfx.good();
-    say(`berry${r.gained}`, `Blåbär! Du får ${korg(r.gained)}.`);
-    await wait(1800);
+    say(`berry${r.gained}`, `Blåbär! Du får ${korg(r.gained)}.`).then(() => r.extra && say('extra', 'Och en extra korg, för att du ligger efter!'));
+    await wait(r.extra ? 3800 : 1800);
     return endTurn();
   }
   if (FIGURES[r.type]) {
@@ -502,16 +514,18 @@ function effectLabel({ type, n }) {
 async function showCard(deck) {
   setState('busy');
   card = L.drawCard(game, deck);
-  card.deck = deck;
-  const f = FIGURES[deck];
+  const golden = card.deck === 'golden';
+  const f = golden ? GOLDEN : FIGURES[deck];
   const ov = $('#cardOverlay');
   ov.style.setProperty('--c', f.color);
   // Räven: läskig stämning med mörkrött ljus, skakande kort och hotfullt ljud.
   ov.classList.toggle('danger', deck === 'fox');
+  ov.classList.toggle('golden', golden);
+  if (golden) sfx.six();
   if (deck === 'fox') sfx.danger();
-  $('#cardBack').innerHTML = ART[deck];
+  $('#cardBack').innerHTML = ART[card.deck];
   const [label, mood] = effectLabel(card.effect);
-  $('#cardFront').innerHTML = `<div class="head"><span>${ART[deck]}</span><b>${f.name}</b></div><p>${card.text}</p>` +
+  $('#cardFront').innerHTML = `<div class="head"><span>${ART[card.deck]}</span><b>${f.name}</b></div><p>${card.text}</p>` +
     `<div class="effect ${mood}">${label}</div>`;
   $('#cardButtons').hidden = true;
   $('#tapHint').hidden = isBot();
@@ -528,7 +542,8 @@ async function showCard(deck) {
   ov.hidden = false;
   if (r?.width) { c3.style.setProperty('--fx', `${r.left + r.width / 2 - innerWidth / 2}px`); c3.style.setProperty('--fy', `${r.top + r.height / 2 - innerHeight / 2}px`); }
   c3.style.animation = 'none'; void c3.offsetWidth; c3.style.animation = ''; // starta om "kortet flyger in" från högen
-  if (!isBot()) say('tap');
+  if (golden) say('golden', 'Oj! Ett gyllene kort!');
+  else if (!isBot()) say('tap');
   sfx.card();
   if (isBot()) { await wait(1500); flipCard(); }
 }

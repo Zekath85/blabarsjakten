@@ -15,6 +15,10 @@ export const START_BASKETS = 10;
 export const BONUS = [5, 3, 2, 1];
 export const COLORS = ['#e53935', '#1e88e5', '#fbc02d', '#43a047'];
 const TILES = { fox: 4, owl: 3, squirrel: 3, hedgehog: 3, berry: 6 };
+// Räv-nivå: hur många rävrutor banan får jämfört med vanligt.
+export const FOX_LEVELS = { kind: 0.5, normal: 1, sly: 1.75 };
+// Ungefär var tionde kort från Ugglan, Ekorren eller Igelkotten blir ett gyllene kort.
+export const GOLDEN_CHANCE = 0.1;
 const DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
 
 // Slump som går att upprepa (för test). I spelet används Math.random.
@@ -67,11 +71,12 @@ export function generatePath(rng = Math.random, GRID = SIZES.medium.grid, PATH_L
 }
 
 // Brädet: en lista med rutor. board.grid = rutnätets bredd.
-export function makeBoard(rng = Math.random, size = 'medium') {
+export function makeBoard(rng = Math.random, size = 'medium', foxLevel = 'normal') {
   const { grid, len } = SIZES[size];
   const path = generatePath(rng, grid, len);
   // Lika stor andel figurer och blåbär oavsett storlek (räknat från mellankartan).
-  const middle = Object.entries(TILES).flatMap(([type, n]) => Array(Math.round(n * len / SIZES.medium.len)).fill(type));
+  const middle = Object.entries(TILES).flatMap(([type, n]) =>
+    Array(Math.round(n * len / SIZES.medium.len * (type === 'fox' ? FOX_LEVELS[foxLevel] : 1))).fill(type));
   while (middle.length < path.length - 2) middle.push('empty');
   shuffle(middle, rng);
   const board = path.map((p, i) => {
@@ -117,13 +122,17 @@ export function land(game) {
     return { type: 'goal', bonus, place: p.place };
   }
   if (tile.type === 'berry') {
-    p.baskets += tile.value;
-    return { type: 'berry', gained: tile.value };
+    // Hjälp åt den som ligger efter: har du minst korgar av alla som är kvar på banan får du en extra.
+    const onBoard = game.players.filter(q => !q.place);
+    const extra = onBoard.length > 1 && onBoard.every(q => q === p || q.baskets > p.baskets) ? 1 : 0;
+    p.baskets += tile.value + extra;
+    return { type: 'berry', gained: tile.value + extra, extra };
   }
   return { type: tile.type };
 }
 
-export function drawCard(game, deck) {
+export function drawCard(game, deck, rng = Math.random) {
+  if (deck !== 'fox' && game.decks.golden && rng() < GOLDEN_CHANCE) deck = 'golden';
   const card = game.decks[deck].shift();
   game.decks[deck].push(card);
   return card;

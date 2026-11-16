@@ -27,7 +27,11 @@ assert.deepEqual([count('fox'), count('owl'), count('squirrel'), count('hedgehog
 board.filter(b => b.type === 'berry').forEach(b => assert.ok(b.value >= 1 && b.value <= 3));
 
 // Korthögar
-assert.ok(Object.values(DECKS).every(d => d.length >= 15), 'minst 15 kort per hög');
+assert.ok(['fox', 'owl', 'squirrel', 'hedgehog'].every(k => DECKS[k].length >= 15), 'minst 15 kort per hög');
+assert.ok(DECKS.golden.every(c => ['gain', 'move', 'all', 'again'].includes(c.effect.type) && (c.effect.n ?? 1) > 0), 'gyllene kort är alltid bra');
+// Räv-nivå: snäll har färre rävrutor än busig.
+const foxes = lvl => makeBoard(mulberry32(5), 'medium', lvl).filter(t => t.type === 'fox').length;
+assert.ok(foxes('kind') < foxes('normal') && foxes('normal') < foxes('sly'));
 // Räven: inga kort som ger dig något.
 assert.ok(DECKS.fox.every(({ effect: { type, n } }) => ['lose', 'giveToEach', 'none'].includes(type) || (['all', 'move'].includes(type) && n < 0)), 'Räven är aldrig snäll');
 assert.ok(DECKS.fox.filter(c => c.effect.type === 'none').length <= 2, 'Räven tar oftast något');
@@ -36,6 +40,25 @@ assert.equal(makeBoard(mulberry32(3), 'small').length, SIZES.small.len);
 assert.equal(makeBoard(mulberry32(3), 'large').grid, SIZES.large.grid);
 assert.ok(estimateMinutes('small', 2) < estimateMinutes('large', 2));
 assert.ok(estimateMinutes('medium', 2) < estimateMinutes('medium', 4));
+
+// Gyllene kort: aldrig från Räven, ibland från de andra.
+{
+  const gg = createGame(['A', 'B'], board, mulberry32(2));
+  assert.equal(drawCard(gg, 'fox', () => 0).deck, 'fox');
+  assert.equal(drawCard(gg, 'owl', () => 0).deck, 'golden');
+  assert.equal(drawCard(gg, 'owl', () => 0.99).deck, 'owl');
+}
+
+// Hjälp åt den som ligger efter: minst korgar ger en extra på blåbärsruta.
+{
+  const bb = makeBoard(mulberry32(7));
+  const berry = bb.findIndex(t => t.type === 'berry');
+  const gg = createGame(['A', 'B'], bb, mulberry32(1));
+  gg.players[0].baskets = 2; gg.players[0].pos = berry;
+  assert.equal(land(gg).gained, bb[berry].value + 1);
+  gg.players[0].baskets = 20;
+  assert.equal(land(gg).gained, bb[berry].value, 'den som leder får ingen extra');
+}
 
 // Start
 let g = createGame(['A', 'B', 'C', 'D'], board, mulberry32(1));
