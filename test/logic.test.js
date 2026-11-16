@@ -36,6 +36,9 @@ assert.ok(foxes('kind') < foxes('normal') && foxes('normal') < foxes('sly'));
 // Räven: inga kort som ger dig något.
 assert.ok(DECKS.fox.every(({ effect: { type, n } }) => ['lose', 'giveToEach', 'none'].includes(type) || (['all', 'move'].includes(type) && n < 0)), 'Räven är aldrig snäll');
 assert.ok(DECKS.fox.filter(c => c.effect.type === 'none').length <= 2, 'Räven tar oftast något');
+// Alla andra kort ger alltid något bra (aldrig dåligt eller "inget händer").
+const good = ({ type, n }) => ['gain', 'again', 'takeFromEach'].includes(type) || (['move', 'all'].includes(type) && n > 0);
+for (const deck of ['owl', 'squirrel', 'hedgehog', 'golden']) DECKS[deck].forEach(c => assert.ok(good(c.effect), `${deck}: ${c.text}`));
 // Storlekar: brädet följer storleken, och tiden växer med karta och spelare.
 assert.equal(makeBoard(mulberry32(3), 'small').length, SIZES.small.len);
 assert.equal(makeBoard(mulberry32(3), 'large').grid, SIZES.large.grid);

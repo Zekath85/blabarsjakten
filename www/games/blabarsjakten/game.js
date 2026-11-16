@@ -326,6 +326,7 @@ function placePawn(i) {
 }
 
 function renderScores() {
+  $('#scores').classList.toggle('many', game.players.length > 2);
   $('#scores').innerHTML = game.players.map((p, i) =>
     `<div class="chip ${i === game.current && !game.over ? 'on' : ''} ${p.place ? 'done' : ''}" style="--c:${p.color}">` +
     `<span class="chip-face">${figure(p, p.color, true)}</span><b>${esc(p.name)}</b><span class="bk">${ART.basket}</span>` +

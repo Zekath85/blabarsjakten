@@ -626,3 +626,51 @@ body.calm .cloud { animation: none; }
 .volume svg { width: 32px; height: 32px; color: #6b4a2b; }
 .volume input { flex: 1; accent-color: #4caf50; height: 30px; }
 @media (max-width: 560px) { .songs { grid-template-columns: repeat(2, 1fr); } }
+
+/* ---------- Mobil (smal skärm, stående) ---------- */
+/* Kortets text anpassar sig efter kortets bredd, så etiketten inte trycks mot kanten. */
+.card-front p { font-size: clamp(16px, min(3.4vh, 5.4vw), 28px); padding: 10px 16px; }
+.card-front .effect { margin-bottom: 7%; }
+@media (max-width: 600px) {
+  .card-front .head { padding: 8px; }
+  .card-front .head span { width: 32%; }
+  .card-front .head b { font-size: 18px; }
+  .card3d { width: min(82vw, 340px, 52vh); }
+
+  .counts { gap: 10px; }
+  .count { width: 66px; height: 66px; font-size: 30px; }
+
+  /* Banvalet: allt på egna rader, knapparna delar på bredden. */
+  .bar { padding: 8px 10px 12px; gap: 8px; }
+  .actions { gap: 8px; justify-content: center; }
+  .sizes { margin-right: 0 !important; width: 100%; justify-content: space-between; gap: 4px; padding: 4px; }
+  .size { min-width: 0; flex: 1; padding: 6px 2px; }
+  .size > svg, .season-pick > svg { width: 26px; height: 26px; }
+  .size small { font-size: 12px; }
+  .fox-level .foxes { height: 26px; }
+  .fox-level .foxes svg { width: 18px; height: 18px; }
+  #newBoardBtn, #startBtn { flex: 1; min-height: 58px; font-size: 22px; padding: 0 12px; }
+
+  /* Spelarna på en rad: kompakta knappar, långa namn förkortas med … */
+  .scores { flex-wrap: nowrap; gap: 6px; padding: 92px 8px 6px; min-height: 0; }
+  .chip { flex: 0 1 auto; min-width: 0; gap: 4px; padding: 3px 10px 3px 3px; font-size: 15px; }
+  .chip b { min-width: 0; max-width: 5em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .chip-face { width: 30px; height: 30px; border-width: 2px; }
+  .chip .bk svg { width: 20px; height: 20px; }
+  .chip .num { font-size: 19px; min-width: 1.2em; }
+  .chip.on { transform: scale(1.04); }
+  .chip-medal svg { width: 20px; height: 20px; }
+  .board-wrap { margin: 4px 10px 0; }
+  .btn.action { min-width: 0; width: 100%; min-height: 72px; margin: 0; }
+  .corner svg { width: 54px !important; height: 54px !important; margin: 0 -14px; }
+  .corner svg:nth-child(2), .corner svg:nth-child(3) { display: none; }
+  .turn-banner span { width: 96px; height: 96px; }
+  .goal-card { padding-top: 60px; }
+  .goal-card h2 { font-size: 26px; }
+  .podium .step { width: 92px; }
+  .rank1 .block { height: 130px; } .rank2 .block { height: 100px; } .rank3 .block { height: 80px; } .rank4 .block { height: 66px; }
+  .plate { font-size: 13px; }
+}
+/* Fyra spelare på en smal skärm: korgikonen göms så att alla får plats på en rad. */
+@media (max-width: 600px) { .scores.many .chip .bk { display: none; } .scores.many .chip { flex: 1 1 0; } .scores.many .chip b { max-width: none; flex: 1 1 auto; } .scores.many .chip.on { transform: none; } }
+#play { grid-template-columns: minmax(0, 1fr); } /* raderna får aldrig bli bredare än skärmen */

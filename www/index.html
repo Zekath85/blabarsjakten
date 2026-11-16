@@ -24,10 +24,13 @@
     .game h2 { margin: 14px 0 4px; font-size: 28px; }
     .game p { margin: 0; font-size: 18px; opacity: .8; }
     .soon { opacity: .5; pointer-events: none; }
+    @media (max-width: 600px) { main { padding-top: 96px; } } /* plats för musikknappen ovanför rubriken */
     .soon .pic { background: linear-gradient(#cfc6b0, #a59a80); font-size: 80px; display: grid; place-items: center; grid-template-columns: 1fr; }
   </style>
 </head>
 <body>
+  <!-- Musik av/på uppe till höger. Ligger ovanpå sidan, så rubriken står kvar i mitten. -->
+  <button class="icon-btn" id="musicBtn" style="right:12px" aria-label="Musik av eller på"></button>
   <main>
     <h1 class="title">Spelhörnan</h1>
     <div class="games" id="games"></div>
@@ -36,8 +39,19 @@
     import { ART } from './games/blabarsjakten/art.js';
     import { music } from './shared/music.js';
     import { MENU_SONG } from './shared/menu-song.js';
+    import { settings } from './shared/audio.js';
     // Lugn menymusik direkt, eller vid första trycket om plattan kräver det.
     music.autostart(MENU_SONG);
+    // Musikknappen: en not, med ett streck över när musiken är av.
+    const note = '<path d="M15 30 V10 L32 6 V26" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="30" r="5" fill="#fff"/><circle cx="29" cy="26" r="5" fill="#fff"/>';
+    const drawMusicBtn = () => (document.getElementById('musicBtn').innerHTML =
+      `<svg viewBox="0 0 40 40">${note}${settings.get('music') ? '' : '<path d="M6 34 L34 6" stroke="#ff8a80" stroke-width="4.5" stroke-linecap="round"/>'}</svg>`);
+    document.getElementById('musicBtn').onclick = () => {
+      settings.set('music', !settings.get('music'));
+      if (settings.get('music') && !music.playing) music.play(MENU_SONG);
+      drawMusicBtn();
+    };
+    drawMusicBtn();
     // Nytt spel = en rad här + en mapp under games/.
     const GAMES = [
       { href: 'games/blabarsjakten/index.html', name: 'Blåbärsjakten', text: 'Samla flest blåbärskorgar!', pic: ['fox', 'owl', 'squirrel', 'hedgehog'].map(k => ART[k]).join('') },
