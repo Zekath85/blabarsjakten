@@ -35,8 +35,6 @@ function setup() {
   tone.type = 'lowpass'; tone.frequency.value = 2400;
   fb.gain.value = 0.32; wet.gain.value = 0.35;
   echo.connect(tone); tone.connect(fb); fb.connect(echo); tone.connect(wet); wet.connect(master);
-  musicBus = ctx.createGain();
-  musicBus.connect(master);
   // Brus till trummorna (en gång).
   noise = ctx.createBuffer(1, ctx.sampleRate * 0.3, ctx.sampleRate);
   const d = noise.getChannelData(0);
@@ -153,19 +151,36 @@ function tick() {
   }
 }
 
+// Tona ut låten som spelas (dess toner som redan är inlagda tonar ut med den) och koppla bort den efteråt.
+function fadeOut(t) {
+  const old = musicBus;
+  if (!old) return;
+  old.gain.cancelScheduledValues(t);
+  old.gain.setValueAtTime(old.gain.value, t);
+  old.gain.linearRampToValueAtTime(0.0001, t + 1);
+  setTimeout(() => old.disconnect(), 1500);
+}
+
 export const music = {
   // Starta (eller byt till) en låt. Kräver att man har tryckt på skärmen en gång (webbläsarens regel).
+  // Byte av låt: den gamla tonar ut och den nya tonar in (ingen tvär klippning).
   play(s) {
     setup();
     if (ctx.state === 'suspended') ctx.resume();
+    const t = ctx.currentTime, switching = !!timer;
+    fadeOut(t);
+    musicBus = ctx.createGain(); // egen volym för den nya låten, så att den kan tona in
+    musicBus.connect(master);
+    musicBus.gain.setValueAtTime(0.0001, t);
+    musicBus.gain.linearRampToValueAtTime(1, t + (switching ? 1.6 : 0.8));
     song = { ...s, leadTokens: s.lead ? s.lead.trim().split(/\s+/) : [] };
     step = 0;
-    nextTime = ctx.currentTime + 0.1;
+    nextTime = t + (switching ? 0.5 : 0.1); // låt den gamla hinna tona ner lite först
     clearInterval(timer);
     timer = setInterval(tick, 40);
     applyVolume();
   },
-  stop() { clearInterval(timer); timer = null; song = null; },
+  stop() { if (ctx) fadeOut(ctx.currentTime); clearInterval(timer); timer = null; song = null; },
   get playing() { return !!timer; },
   applyVolume,
 };
