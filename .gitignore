@@ -3,3 +3,7 @@ www/files.json
 # Gammal Android-version, används inte längre (spelet är en webbapp nu).
 android/
 capacitor.config.json
+
+# Hemliga nycklar (t.ex. ElevenLabs) och röstprover
+.env.local
+rostprover/
