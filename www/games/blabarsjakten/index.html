@@ -38,14 +38,11 @@
     <div class="scores" id="scores"></div>
     <div class="board-wrap">
       <div class="viewport" id="viewport">
+        <div class="sky" aria-hidden="true"><i class="sun"></i><i class="cloud c1"></i><i class="cloud c2"></i><svg class="far-hills" viewBox="0 0 400 60" preserveAspectRatio="none"><path d="M0 60 V34 Q40 10 90 30 T190 24 T290 32 T400 20 V60Z"/><path class="near" d="M0 60 V44 Q60 26 130 42 T260 38 T400 40 V60Z"/></svg></div>
         <div class="stage"><div class="world" id="world"></div></div>
         <div class="clouds" aria-hidden="true"><i></i><i></i><i></i><span class="birds"><svg viewBox="0 0 120 40"><path d="M4 20 Q14 8 24 20 Q34 8 44 20 M50 12 Q58 2 66 12 Q74 2 82 12 M84 28 Q92 18 100 28 Q108 18 116 28" fill="none" stroke="#2b2b2b" stroke-width="4" stroke-linecap="round"/></svg></span></div>
         <div class="weather" id="weather"></div>
         <div class="vignette"></div>
-        <div class="dice-zone" id="diceZone" hidden>
-          <div class="dice-wrap"><div class="cube" id="cube"></div></div>
-          <div class="sparks" id="sparks"></div>
-        </div>
         <div class="hint" id="hint" hidden></div>
         <div class="season-banner" id="seasonBanner" hidden></div>
         <div class="turn-banner" id="turnBanner" hidden></div>
@@ -56,6 +53,7 @@
     <footer class="bar">
       <div class="piles" id="piles"></div>
       <div class="actions" id="previewActions">
+        <div class="sizes" id="seasons" aria-label="Årstid"></div>
         <div class="sizes" id="sizes" aria-label="Kartans storlek"></div>
         <div class="sizes" id="foxLevels" aria-label="Hur busig Räven är"></div>
         <button class="btn blue" id="newBoardBtn" data-icon="refresh">Ny bana</button>
@@ -150,6 +148,14 @@
       <label class="toggle"><input type="checkbox" data-pref="calm"><span></span>Lugnt läge (färre rörelser, bra för äldre plattor)</label>
       <div class="row"><button class="btn green" id="closeSoundBtn">Klar</button></div>
     </div>
+  </div>
+
+  <!-- Tärningen: man drar uppåt från knappen och släpper. Pilen visar riktning och kraft. -->
+  <div class="dice-layer" id="diceZone" hidden>
+    <svg class="aim" id="aim" hidden><line id="aimLine"/><circle id="aimDot" r="10"/></svg>
+    <div class="dice-shadow" id="diceShadow"></div>
+    <div class="dice-wrap" id="diceWrap"><div class="dice-pop"><div class="cube" id="cube"></div></div></div>
+    <div class="sparks" id="sparks"></div>
   </div>
 
   <canvas id="fx" hidden></canvas>

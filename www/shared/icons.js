@@ -19,6 +19,12 @@ export const ICONS = {
   stepsBack: s(`<ellipse cx="16" cy="25" rx="5" ry="7" fill="currentColor"/><ellipse cx="27" cy="15" rx="5" ry="7" fill="currentColor"/><path d="M10 30 H3 M6 27 L3 30 L6 33" ${line} stroke-width="3"/>`),
   dice: s(`<rect x="5" y="5" width="30" height="30" rx="8" fill="#fff" stroke="currentColor" stroke-width="3"/><circle cx="13" cy="13" r="3.2" fill="currentColor"/><circle cx="20" cy="20" r="3.2" fill="currentColor"/><circle cx="27" cy="27" r="3.2" fill="currentColor"/>`),
   group: s(`<circle cx="13" cy="14" r="5" fill="currentColor"/><circle cx="27" cy="14" r="5" fill="currentColor"/><path d="M4 32 a9 9 0 0 1 18 0Z M18 32 a9 9 0 0 1 18 0Z" fill="currentColor"/>`),
+  arrowUp: s(`<path d="M20 34 V8 M10 18 L20 8 L30 18" ${line} stroke-width="4.5"/>`),
+  // Årstider
+  spring: s(`<g fill="#ff8fb8">${[0, 72, 144, 216, 288].map(a => `<ellipse cx="20" cy="10" rx="6" ry="9" transform="rotate(${a} 20 20)"/>`).join('')}</g><circle cx="20" cy="20" r="5" fill="#ffd54f"/>`),
+  summer: s(`<g stroke="#ffb300" stroke-width="3.5" stroke-linecap="round">${[0, 45, 90, 135, 180, 225, 270, 315].map(a => `<path d="M20 3 V8" transform="rotate(${a} 20 20)"/>`).join('')}</g><circle cx="20" cy="20" r="9" fill="#ffd54f" stroke="#ffb300" stroke-width="2"/>`),
+  autumn: s(`<path d="M20 4 C30 10 34 22 20 36 C6 22 10 10 20 4Z" fill="#e8742c" stroke="#a84a14" stroke-width="2"/><path d="M20 8 V36 M20 18 L27 13 M20 25 L13 19" stroke="#a84a14" stroke-width="2" fill="none"/>`),
+  winter: s(`<g stroke="#8fd3ff" stroke-width="3.5" stroke-linecap="round" fill="none">${[0, 60, 120].map(a => `<path d="M20 4 V36 M14 9 L20 14 L26 9 M14 31 L20 26 L26 31" transform="rotate(${a} 20 20)"/>`).join('')}</g>`),
   calm: s(`<path d="M20 34 C8 26 6 16 12 10 C16 6 20 9 20 12 C20 9 24 6 28 10 C34 16 32 26 20 34Z" fill="currentColor"/>`),
 };
 

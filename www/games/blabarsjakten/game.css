@@ -64,7 +64,7 @@ body[data-season="winter"] { --frame-1: #b9cfe0; --frame-2: #6e8aa3; --ground-1:
     radial-gradient(circle at 20% 30%, var(--spot) 0 7%, transparent 8%) 0 0 / 180px 180px,
     radial-gradient(circle at 70% 75%, var(--spot) 0 5%, transparent 6%) 0 0 / 140px 140px,
     radial-gradient(ellipse at 30% 20%, rgba(255,255,255,.25), transparent 50%),
-    linear-gradient(160deg, var(--ground-1), var(--ground-2)); }
+    repeating-conic-gradient(var(--lawn-a) 0 25%, var(--lawn-b) 0 50%) 0 0 / 180px 180px; }
 body[data-season="winter"] .world { background-color: #eef5fb; }
 .deco { position: absolute; width: var(--cell); height: var(--cell); transform: translateY(-6px); }
 .deco svg { width: 100%; height: 100%; }
@@ -141,19 +141,36 @@ body[data-season="winter"] .world { background-color: #eef5fb; }
 @keyframes pulse { 50% { transform: scale(1.06); } }
 
 /* ---------- Tärning ---------- */
-.dice-zone { position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none; background: radial-gradient(circle, rgba(0,0,0,.5), rgba(0,0,0,.2) 70%); }
-.dice-wrap { perspective: 700px; grid-area: 1 / 1; }
-.cube { position: relative; width: 120px; height: 120px; transform-style: preserve-3d; transition: transform 1.2s cubic-bezier(.15,.8,.25,1.08); }
-.face { position: absolute; inset: 0; border-radius: 22px; background: linear-gradient(145deg, #fff, #e9e2d0); border: 3px solid #d2c6a6; display: grid; grid-template: repeat(3, 1fr) / repeat(3, 1fr); padding: 14px; }
-.face i { width: 22px; height: 22px; border-radius: 50%; background: #3b2414; place-self: center; }
-.f1 { transform: translateZ(60px); } .f6 { transform: rotateY(180deg) translateZ(60px); }
-.f3 { transform: rotateY(90deg) translateZ(60px); } .f4 { transform: rotateY(-90deg) translateZ(60px); }
-.f5 { transform: rotateX(90deg) translateZ(60px); } .f2 { transform: rotateX(-90deg) translateZ(60px); }
-.dice-zone.landed .dice-wrap { animation: thump .35s; }
+/* Tärningslagret täcker hela skärmen så att tärningen kan flyga från knappen upp över planen. */
+.dice-layer { position: fixed; inset: 0; z-index: 30; pointer-events: none; }
+.dice-layer.flying, .dice-layer.landed { background: rgba(0, 0, 0, .18); transition: background .3s; }
+.dice-wrap { position: absolute; left: 0; top: 0; width: 96px; height: 96px; will-change: transform; }
+.dice-pop { width: 100%; height: 100%; perspective: 600px; }
+.dice-layer.aiming .dice-pop { animation: shake .09s linear infinite; }
+@keyframes shake { 25% { transform: translate(var(--shake, 1px), 0); } 75% { transform: translate(calc(var(--shake, 1px) * -1), 0); } }
+.dice-layer.landed .dice-pop { animation: thump .35s; }
 @keyframes thump { 40% { transform: scale(1.25); } }
-.sparks { grid-area: 1 / 1; position: relative; width: 0; height: 0; }
+.dice-shadow { position: absolute; left: 0; top: 0; width: 96px; height: 48px; border-radius: 50%; background: radial-gradient(ellipse, rgba(0,0,0,.6), transparent 70%); will-change: transform, opacity; }
+.cube { position: relative; width: 96px; height: 96px; transform-style: preserve-3d; }
+.face { position: absolute; inset: 0; border-radius: 20px; background: radial-gradient(circle at 30% 25%, #fff, #f1ead8 60%, #ddd3bb); border: 3px solid #cbbd99; display: grid; grid-template: repeat(3, 1fr) / repeat(3, 1fr); padding: 11px;
+  box-shadow: inset 0 0 0 2px rgba(255,255,255,.6), inset 0 -6px 10px rgba(0,0,0,.08); }
+.face i { width: 18px; height: 18px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #6b4a2b, #2b1a0e); place-self: center; }
+.f1 { transform: translateZ(48px); } .f6 { transform: rotateY(180deg) translateZ(48px); }
+.f3 { transform: rotateY(90deg) translateZ(48px); } .f4 { transform: rotateY(-90deg) translateZ(48px); }
+.f5 { transform: rotateX(90deg) translateZ(48px); } .f2 { transform: rotateX(-90deg) translateZ(48px); }
+.sparks { position: absolute; width: 0; height: 0; }
 .spark { position: absolute; width: 14px; height: 14px; margin: -7px; border-radius: 50%; background: var(--c, #ffe08a); animation: spark .8s ease-out forwards; }
 @keyframes spark { to { transform: translate(var(--dx), var(--dy)) scale(.2); opacity: 0; } }
+/* Siktpilen: grön = löst, gul = lagom, röd = hårt. */
+.aim { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+#aimLine { stroke-linecap: round; stroke-dasharray: 2 22; filter: drop-shadow(0 2px 3px rgba(0,0,0,.4)); }
+#aimDot { stroke: #fff; stroke-width: 4; }
+/* Knappen visar en tärning och en pil uppåt som guppar: dra uppåt! */
+.btn.action.throw { touch-action: none; min-width: 200px; gap: 18px; }
+.btn.action.throw .throw-dice svg { width: 58px; height: 58px; }
+.throw-hint { display: grid; animation: swipe 1.4s ease-in-out infinite; }
+.throw-hint svg { width: 44px; height: 44px; color: #4a2a00; }
+@keyframes swipe { 0%, 100% { transform: translateY(10px); opacity: .4; } 50% { transform: translateY(-12px); opacity: 1; } }
 
 /* ---------- Kort ---------- */
 .overlay { position: fixed; inset: 0; z-index: 40; background: rgba(8, 14, 11, .82); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px; padding: 16px; overflow: auto; }
@@ -503,7 +520,7 @@ body[data-season="winter"] .snowcap { display: inline; }
 @keyframes fish { 0%, 80%, 100% { opacity: 0; transform: translate(0, 10px) rotate(0); } 84% { opacity: 1; transform: translate(8px, -22px) rotate(-30deg); } 90% { opacity: 1; transform: translate(18px, -10px) rotate(40deg); } 94% { opacity: 0; transform: translate(22px, 8px) rotate(60deg); } }
 .glint { position: absolute; width: 14px; height: 4px; border-radius: 4px; background: rgba(255, 255, 255, .85); pointer-events: none; animation: glint 4s ease-in-out infinite; }
 @keyframes glint { 0%, 100% { opacity: 0; transform: scaleX(.4); } 50% { opacity: 1; transform: scaleX(1); } }
-body[data-season="winter"] .critter, body[data-season="winter"] .glint { display: none; }
+body[data-season="winter"] .critter.duck, body[data-season="winter"] .critter.fish, body[data-season="winter"] .glint { display: none; }
 
 /* Molnskuggor och fåglar som glider över planen. */
 .clouds { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
@@ -524,3 +541,76 @@ body.tilt .deco.landmark { transform-style: preserve-3d; }
 /* Lugnt läge: landskapet står stilla. */
 body.calm .clouds, body.calm .glint, body.calm .critter.fish, body.calm .smoke { display: none; }
 body.calm .sails, body.calm .critter.duck { animation: none; }
+
+/* ---------- Gräsmatta och häck ---------- */
+body { --lawn-a: #93d058; --lawn-b: #7fc046; --hedge: #3f8f2f; --hedge-light: #5cae43; }
+body[data-season="spring"] { --lawn-a: #a6dd78; --lawn-b: #92d063; }
+body[data-season="autumn"] { --lawn-a: #c5b25a; --lawn-b: #b29d48; --hedge: #8a5a22; --hedge-light: #b97a2e; }
+body[data-season="winter"] { --lawn-a: #f6fafd; --lawn-b: #e7f0f7; --hedge: #6f8fa6; --hedge-light: #9fbad0; }
+.world::after { content: ""; position: absolute; inset: 0; border-radius: 24px; pointer-events: none; z-index: 1;
+  box-shadow: inset 0 0 0 10px var(--hedge), inset 0 0 0 14px var(--hedge-light), inset 0 0 0 17px rgba(0,0,0,.12), inset 0 10px 24px rgba(0,0,0,.18); }
+
+/* Årstidsval vid banvalet. */
+.season-pick > svg { width: 34px; height: 34px; }
+#seasons { margin-right: 0; }
+
+/* Fjärilar, bin och kaniner. */
+.critter.butterfly { width: 34px; height: 34px; z-index: 2; animation: flutter 14s ease-in-out infinite; }
+.critter.butterfly .wings { transform-origin: 50% 50%; transform-box: fill-box; animation: flap .25s ease-in-out infinite alternate; }
+@keyframes flap { to { transform: scaleX(.3); } }
+@keyframes flutter { 0%, 100% { transform: translate(0, 0); } 20% { transform: translate(60px, -30px); } 40% { transform: translate(110px, 10px); } 60% { transform: translate(60px, 50px); } 80% { transform: translate(-20px, 20px); } }
+.critter.bee { width: 26px; height: 26px; z-index: 2; animation: buzz 6s ease-in-out infinite; }
+.critter.bee .wings { transform-origin: 50% 80%; transform-box: fill-box; animation: flap .08s linear infinite alternate; }
+@keyframes buzz { 0%, 100% { transform: translate(0, 0); } 25% { transform: translate(24px, -12px); } 50% { transform: translate(0, -20px) scaleX(-1); } 75% { transform: translate(-24px, -8px) scaleX(-1); } }
+.critter.rabbit { width: 44px; height: 44px; animation: peek 12s ease-in-out infinite; transform-origin: 50% 100%; }
+.critter.rabbit .fur { fill: #c8a27a; }
+body[data-season="winter"] .critter.rabbit .fur { fill: #fff; }
+@keyframes peek { 0%, 55%, 100% { transform: translateY(14px) scale(.2); opacity: 0; } 60% { transform: translateY(0) scale(1); opacity: 1; } 68% { transform: translateY(-12px); } 74% { transform: translateY(0); } 82% { transform: translateY(-8px) scaleX(-1); } 88% { transform: translateY(0) scaleX(-1); opacity: 1; } 92% { transform: translateY(14px) scale(.2); opacity: 0; } }
+body[data-season="winter"] .critter.butterfly, body[data-season="winter"] .critter.bee, body[data-season="autumn"] .critter.bee { display: none; }
+body.calm .critter.butterfly, body.calm .critter.bee, body.calm .critter.rabbit { animation: none; }
+body.calm .critter.butterfly .wings, body.calm .critter.bee .wings { animation: none; }
+
+/* ---------- Ramen runt planen: stad, skog, bondgård ---------- */
+body { --pave: #cfc8bb; --stone: #e2dccf; --floor: #4f7a3a; --litter: #6f9a4a; --litter2: #8a6a3a; --soil: #8d6236; --furrow: #a8794a; --scene-bg: #8a8070; }
+body[data-theme="town"] { --scene-bg: #8f8a80; }
+body[data-theme="forest"] { --scene-bg: #3f6630; }
+body[data-theme="farm"] { --scene-bg: #7a5430; }
+body[data-season="autumn"] { --floor: #6a5a2a; --litter: #c9702a; --litter2: #b03a1a; }
+body[data-season="winter"] { --pave: #e6eef5; --stone: #f7fbfe; --floor: #e9f1f7; --litter: #d6e3ee; --litter2: #c7d6e3; --soil: #e8eef3; --furrow: #d3dee8; --scene-bg: #cfdbe6; }
+.viewport { background: var(--scene-bg); }
+.scenery-ground { position: absolute; pointer-events: none; overflow: visible; }
+.pave { fill: var(--pave); } .stone { fill: var(--stone); stroke: rgba(0,0,0,.08); stroke-width: 2; }
+.floor { fill: var(--floor); } .litter { fill: var(--litter); } .litter2 { fill: var(--litter2); }
+.soil { fill: var(--soil); } .furrow { fill: var(--furrow); }
+.street { fill: none; stroke: #6d6a66; stroke-width: 36; }
+.street-line { fill: none; stroke: #fff; stroke-width: 4; stroke-dasharray: 26 22; }
+body[data-season="winter"] .street { stroke: #9aa6b2; }
+.edge { fill: none; }
+.edge.picket { stroke: #fff; stroke-width: 7; }
+.edge.rail { stroke: #8d5a2b; stroke-width: 6; }
+.edge.hedge { stroke: var(--hedge); stroke-width: 26; stroke-dasharray: 2 20; stroke-linecap: round; }
+.post-picket { fill: #fff; stroke: #b0a89a; stroke-width: 1.5; }
+.post-rail { fill: #6d4220; }
+/* Saker i ramen står upp (i 3D) precis som träden på planen. */
+.deco.scene { transform: none; }
+.deco.scene .sway { width: 100%; height: 100%; }
+.sway.shop, .sway.townhouse, .sway.lamp, .sway.bench, .sway.flowerbed, .sway.rock, .sway.log, .sway.mushrooms, .sway.barn, .sway.silo, .sway.hay, .sway.scarecrow, .sway.pumpkins { animation: none; }
+.critter.chicken { width: 36px; height: 36px; animation: peck 5s ease-in-out infinite; }
+@keyframes peck { 0%, 100% { transform: translate(0, 0); } 20% { transform: translate(0, 0) rotate(18deg); } 25% { transform: rotate(0); } 50% { transform: translate(-30px, 6px) scaleX(-1); } 70% { transform: translate(-30px, 6px) scaleX(-1) rotate(18deg); } 75% { transform: translate(-30px, 6px) scaleX(-1); } }
+body.tilt .deco.scene .sway svg { transform-origin: 50% 90%; transform: rotateX(-42deg); }
+body.calm .critter.chicken { animation: none; }
+
+/* Himmel bakom planen i 3D-läget. */
+.sky { position: absolute; inset: 0; display: none; pointer-events: none; overflow: hidden; background: linear-gradient(#5fb8f0, #bfe7ff 60%, #e8f7ff); }
+body.tilt .sky { display: block; }
+body[data-season="winter"] .sky { background: linear-gradient(#9cc5e3, #e3f1fb 60%, #fff); }
+body[data-season="autumn"] .sky { background: linear-gradient(#f2a65a, #ffd9a8 60%, #fff1dd); }
+.sun { position: absolute; right: 12%; top: 6%; width: 90px; height: 90px; border-radius: 50%; background: radial-gradient(circle, #fff9c4 30%, #ffd54f 55%, rgba(255,213,79,0) 72%); }
+.cloud { position: absolute; width: 160px; height: 50px; border-radius: 50px; background: #fff; opacity: .9; box-shadow: 40px -18px 0 6px #fff, 80px 0 0 0 #fff; animation: drift 80s linear infinite; }
+.cloud.c1 { top: 8%; left: -20%; } .cloud.c2 { top: 18%; left: -40%; animation-duration: 120s; animation-delay: -50s; transform: scale(.7); }
+@keyframes drift { to { left: 120%; } }
+.far-hills { position: absolute; left: 0; right: 0; top: 22%; width: 100%; height: 22%; }
+.far-hills path { fill: #8cc47a; } .far-hills path.near { fill: #6fae5c; }
+body[data-season="winter"] .far-hills path { fill: #e8f1f8; } body[data-season="winter"] .far-hills path.near { fill: #d4e3ee; }
+body[data-season="autumn"] .far-hills path { fill: #c99a4a; } body[data-season="autumn"] .far-hills path.near { fill: #b37f36; }
+body.calm .cloud { animation: none; }

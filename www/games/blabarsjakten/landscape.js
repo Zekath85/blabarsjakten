@@ -114,6 +114,18 @@ export const LAND_ART = {
     <path d="M81 44 L95 47 L81 51Z" fill="#ff9800" ${OUT}/><circle cx="73" cy="41" r="2.5" fill="#2b1d14"/>
     <path d="M30 60 Q44 54 54 64" fill="none" stroke="#cfd8dc" stroke-width="3"/>`),
   fish: svg(`<path d="M20 50 Q50 25 78 50 Q50 75 20 50Z" fill="#ff8a65" ${OUT}/><path d="M78 50 L96 36 V64Z" fill="#ff7043" ${OUT}/><circle cx="34" cy="46" r="3" fill="#2b1d14"/>`),
+  butterfly: color => svg(`<g class="wings"><path d="M50 50 C30 20 8 26 14 46 C18 58 36 58 50 50Z M50 50 C70 20 92 26 86 46 C82 58 64 58 50 50Z" fill="${color}" ${OUT}/>
+    <path d="M50 52 C36 64 26 80 38 82 C46 82 50 66 50 52Z M50 52 C64 64 74 80 62 82 C54 82 50 66 50 52Z" fill="${color}" opacity=".85" ${OUT}/>
+    <circle cx="30" cy="40" r="5" fill="#fff" opacity=".7"/><circle cx="70" cy="40" r="5" fill="#fff" opacity=".7"/></g>
+    <ellipse cx="50" cy="56" rx="4" ry="16" fill="#3b2414"/><path d="M48 40 Q42 28 38 26 M52 40 Q58 28 62 26" stroke="#3b2414" stroke-width="2.5" fill="none"/>`),
+  bee: svg(`<g class="wings"><ellipse cx="40" cy="30" rx="14" ry="18" fill="#e3f2fd" opacity=".9" ${OUT}/><ellipse cx="60" cy="30" rx="14" ry="18" fill="#e3f2fd" opacity=".9" ${OUT}/></g>
+    <ellipse cx="50" cy="58" rx="26" ry="20" fill="#ffd54f" ${OUT}/><path d="M42 40 V76 M56 40 V76" stroke="#3b2414" stroke-width="7"/>
+    <circle cx="74" cy="54" r="3" fill="#3b2414"/><path d="M24 58 L14 60" stroke="#3b2414" stroke-width="4" stroke-linecap="round"/>`),
+  rabbit: svg(`<ellipse cx="50" cy="92" rx="26" ry="5" fill="#000" opacity=".18"/>
+    <path d="M38 40 C30 6 42 4 46 38Z M62 40 C70 6 58 4 54 38Z" class="fur" ${OUT}/><path d="M40 34 C36 14 42 12 44 32Z M60 34 C64 14 58 12 56 32Z" fill="#ffb3c6"/>
+    <ellipse cx="50" cy="74" rx="26" ry="20" class="fur" ${OUT}/><circle cx="50" cy="50" r="18" class="fur" ${OUT}/>
+    <circle cx="43" cy="47" r="3" fill="#2b1d14"/><circle cx="57" cy="47" r="3" fill="#2b1d14"/><ellipse cx="50" cy="56" rx="3.5" ry="2.5" fill="#ff8fab"/>
+    <circle cx="72" cy="80" r="7" fill="#fff" ${OUT}/>`),
   well: svg(`<ellipse cx="50" cy="88" rx="30" ry="6" fill="#000" opacity=".18"/><rect x="26" y="56" width="48" height="30" rx="6" fill="#b0a08a" ${OUT}/>
     <path d="M28 64 H72 M28 74 H72" stroke="#8a7a66" stroke-width="2.5"/><path d="M32 56 V26 M68 56 V26" stroke="#6d4c41" stroke-width="5"/>
     <path d="M22 30 L50 14 L78 30Z" fill="#8e5a2b" ${OUT}/>`),
@@ -251,5 +263,15 @@ export function renderLandscape(L, board, C, rng = Math.random) {
     if (n === 1) deco += `<div class="critter fish" style="left:${x * C + 26}px;top:${y * C + 26}px">${LAND_ART.fish}</div>`;
     deco += `<i class="glint" style="left:${x * C + 20 + rng() * 40}px;top:${y * C + 20 + rng() * 40}px;animation-delay:${-rng() * 4}s"></i>`;
   });
+  // Mer liv: fjärilar fladdrar över ängen, bin surrar vid blommor och kaniner tittar fram vid buskar.
+  const COLORS = ['#ff8fb8', '#ffd54f', '#8fd3ff', '#c39bff'];
+  const spots = shuffle([...zone].filter(([k, t]) => t !== 'field' && !items.has(k)).map(([k]) => [k % G, Math.floor(k / G)]), rng);
+  spots.slice(0, Math.min(4, Math.ceil(G / 3))).forEach(([x, y], n) =>
+    (deco += `<div class="critter butterfly" style="left:${x * C + 25}px;top:${y * C + 15}px;animation-delay:${-rng() * 14}s">${LAND_ART.butterfly(COLORS[n % COLORS.length])}</div>`));
+  const kinds = kind => [...items].filter(([, v]) => v[0] === kind).map(([k]) => [k % G, Math.floor(k / G)]);
+  kinds('flower').slice(0, 2).forEach(([x, y]) =>
+    (deco += `<div class="critter bee" style="left:${x * C + 30}px;top:${y * C + 10}px;animation-delay:${-rng() * 6}s">${LAND_ART.bee}</div>`));
+  kinds('bush').slice(0, 2).forEach(([x, y]) =>
+    (deco += `<div class="critter rabbit" style="left:${x * C + 44}px;top:${y * C + 40}px;animation-delay:${-rng() * 12}s">${LAND_ART.rabbit}</div>`));
   return { land, road, deco };
 }

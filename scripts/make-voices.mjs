@@ -53,7 +53,7 @@ await say(rules, 'rules', VOICE.rules);
 // Berättarens repliker i spelet (Sofie). Namn kan inte spelas in, så figuren visas på skärmen i stället.
 const PLACE = ['första', 'andra', 'tredje', 'fjärde'], BONUS = ['fem blåbärskorgar', 'tre blåbärskorgar', 'två blåbärskorgar', 'en blåbärskorg'];
 const LINES = {
-  turn: 'Din tur! Slå tärningen.',
+  turn: 'Din tur! Dra tärningen uppåt och släpp.',
   again: 'Slå igen!',
   tap: 'Tryck på kortet.',
   berry1: 'Blåbär! Du får en korg.',

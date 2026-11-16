@@ -95,6 +95,10 @@ export const sfx = {
   click: () => mallet(880, 0.12, 0.08),
   hop: (i = 0) => mallet(392 * Math.pow(2, Math.min(i, 8) / 12 * 2), 0.22, 0.12), // stiger för varje steg: 1, 2, 3…
   roll: () => { for (let i = 0; i < 9; i++) tone(500 + Math.random() * 300, 0.05, { vol: 0.07, delay: i * 0.1, to: 220 }); }, // träklick
+  // Tärningen slår i marken: hårdare stöt = högre klick.
+  knock: (v = 0.5) => { tone(180 + v * 140, 0.09, { vol: 0.05 + v * 0.22, to: 90 }); tone(900 + v * 500, 0.04, { type: 'triangle', vol: 0.03 + v * 0.06 }); },
+  whoosh: (v = 0.5) => tone(200, 0.25 + v * 0.2, { type: 'triangle', vol: 0.04 + v * 0.06, to: 600 + v * 900 }),
+  aim: (step = 0) => mallet(523 * Math.pow(2, step / 6), 0.12, 0.07),
   land: () => { tone(140, 0.3, { vol: 0.28, to: 70 }); mallet(784, 0.3, 0.1, 0.05); },
   six: () => notes([1047, 1319, 1568, 2093], 0.07, 0.09),
   card: () => tone(300, 0.35, { type: 'triangle', vol: 0.06, to: 900 }),

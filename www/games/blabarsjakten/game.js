@@ -2,6 +2,7 @@ import * as L from './logic.js';
 import { FIGURES, DECKS, GOLDEN } from './cards.js';
 import { ART, puzzlePath, SEASONS } from './art.js';
 import { makeLandscape, renderLandscape } from './landscape.js';
+import { renderScenery, THEMES, SCENE_CELLS } from './scenery.js';
 import { stop, playClip, sfx, settings } from '../../shared/audio.js';
 import { avatar, robot, OPTIONS, DEFAULT_LOOKS } from '../../shared/avatar.js';
 import { confirmQuit } from '../../shared/dialog.js';
@@ -9,7 +10,7 @@ import { ICONS, medal, sizeIcon, fillIcons } from '../../shared/icons.js';
 
 // Inspelad röst för kortet (filer från "npm run voices").
 // Berättarens inspelade repliker (Sofie). Texten används bara om filen saknas.
-const LINE_TEXT = { turn: 'Din tur! Slå tärningen.', again: 'Slå igen!', tap: 'Tryck på kortet.', bot: 'Nu är det datorns tur.',
+const LINE_TEXT = { turn: 'Din tur! Dra tärningen uppåt och släpp.', again: 'Slå igen!', tap: 'Tryck på kortet.', bot: 'Nu är det datorns tur.',
   board: 'Här är spelplanen.', win: 'Grattis till vinnaren!', tie: 'Det blev lika!' };
 const say = (key, text = LINE_TEXT[key]) => playClip(`voice/line-${key}.mp3`, text, undefined, 'guide');
 const readCard = kind => playClip(`voice/${card.deck}-${DECKS[card.deck].indexOf(card)}.mp3`, card.text, (FIGURES[card.deck] || GOLDEN).voice, kind);
@@ -29,9 +30,10 @@ let count = 2;
 let bot = false, botName = 'Robo'; // bot: en spelare mot datorn
 let mapSize = 'medium'; // liten, mellan eller stor karta
 let foxLevel = 'normal'; // snäll, vanlig eller busig: hur många rävrutor
+let seasonPick = 'summer'; // vår, sommar, höst eller vinter
 // Kom ihåg namn och figurer till nästa gång.
-try { ({ names, looks, count, bot, botName, mapSize, foxLevel } = { names, looks, count, bot, botName, mapSize, foxLevel, ...JSON.parse(localStorage.getItem('bbj-players') || '{}') }); } catch {}
-const savePlayers = () => { try { localStorage.setItem('bbj-players', JSON.stringify({ names, looks, count, bot, botName, mapSize, foxLevel })); } catch {} };
+try { ({ names, looks, count, bot, botName, mapSize, foxLevel, seasonPick } = { names, looks, count, bot, botName, mapSize, foxLevel, seasonPick, ...JSON.parse(localStorage.getItem('bbj-players') || '{}') }); } catch {}
+const savePlayers = () => { try { localStorage.setItem('bbj-players', JSON.stringify({ names, looks, count, bot, botName, mapSize, foxLevel, seasonPick })); } catch {} };
 // Vilka som spelar: antingen 2–4 personer, eller en person + datorn.
 const lineup = () => bot
   ? [{ name: names[0], look: looks[0] }, { name: botName, bot: true }]
@@ -147,6 +149,10 @@ function newBoard() {
   renderSizes();
   // Landskapet: äng, åker, skog, by, sjö, bäck med broar, grusväg, hus och djur.
   const land = renderLandscape(makeLandscape(board), board, CELL);
+  // Miljön runt planen: stad, skog eller bondgård (slumpas för varje ny bana).
+  const theme = THEMES[Math.floor(Math.random() * THEMES.length)];
+  document.body.dataset.theme = theme;
+  const scene = renderScenery(G, CELL, theme);
   const shapes = board.map((t, i) => puzzlePath(dirTo(t, board[i + 1]), dirTo(t, board[i - 1])));
   const at = t => `left:${t.x * CELL}px;top:${t.y * CELL}px`;
   // Undre lager: skugga och tjock kant för alla bitar, så ingen kant hamnar ovanpå en annan bits ovansida.
@@ -159,8 +165,8 @@ function newBoard() {
     `${tileIcon(t)}</div>`).join('');
   const world = $('#world');
   world.style.width = world.style.height = W + 'px';
-  world.innerHTML = TILE_GRADIENT + land.land + land.road + land.deco + bases + tiles + '<div id="pawns"></div>';
-  setSeason(null); // banvalet har neutral bakgrund
+  world.innerHTML = TILE_GRADIENT + scene.ground + land.land + land.road + scene.deco + land.deco + bases + tiles + '<div id="pawns"></div>';
+  setSeason(seasonPick, false); // planen visar den valda årstiden direkt
   $('#scores').innerHTML = '';
   $('#piles').innerHTML = '';
   $('#previewActions').hidden = false;
@@ -175,7 +181,7 @@ const TILE_GRADIENT = '<svg width="0" height="0" style="position:absolute"><defs
   '<stop offset="0" stop-color="#fff6d2"/><stop offset=".55" stop-color="#f6d77a"/><stop offset="1" stop-color="#e4ad4a"/></radialGradient></defs></svg>';
 
 // Årstid: byter träd och blommor, väder (snö, löv, kronblad, ljus) och hörn-dekor runt planen.
-function setSeason(key) {
+function setSeason(key, banner = true) {
   const S = SEASONS[key];
   document.body.dataset.season = key || '';
   document.querySelectorAll('.deco .sway').forEach(d => {
@@ -185,7 +191,7 @@ function setSeason(key) {
   $('#weather').innerHTML = S ? Array.from({ length: 16 }, () =>
     `<i style="left:${Math.random() * 100}%;animation-delay:${-Math.random() * 14}s;animation-duration:${9 + Math.random() * 7}s;--s:${0.6 + Math.random() * 0.8}"></i>`).join('') : '';
   $('#corners').innerHTML = S ? [0, 1, 2, 3].map(c => `<div class="corner c${c}">${S.bush}${S.extra}${S.flower}</div>`).join('') : '';
-  if (!S) return;
+  if (!S || !banner) return;
   const b = $('#seasonBanner');
   b.textContent = S.name + ' i skogen';
   b.hidden = false;
@@ -197,7 +203,7 @@ function camera(x, y, zoom) {
   lastCam = [x, y, zoom];
   const vp = $('#viewport');
   const vw = vp.clientWidth, vh = vp.clientHeight;
-  const fit = Math.min(vw, vh) / W * 0.96;
+  const fit = Math.min(vw, vh) / (W + SCENE * 1.1) * 0.98;
   // inzoomat: planen fyller hela rutan, och kameran stannar vid kanterna
   const s = zoom ? Math.max(fit * 2, vw / W, vh / W) : fit;
   // I 3D förstoras den närmaste delen, så där får kameran gå lite förbi kanten för att allt ska synas.
@@ -208,7 +214,8 @@ function camera(x, y, zoom) {
   setWorld(cam.tx, cam.ty);
 }
 let cam = null;
-const margin = s => (tilt ? CELL * 1.5 * s : 0);
+const SCENE = SCENE_CELLS * CELL; // ramen runt planen
+const margin = s => SCENE * (tilt ? 1.1 : 0.85) * s;
 const setWorld = (tx, ty) => ($('#world').style.transform = `translate(${tx}px, ${ty}px) scale(${cam.s})`);
 
 // Dra planen med fingret eller musen medan man väntar på att slå. "Slå tärningen" centrerar igen.
@@ -217,7 +224,7 @@ $('#viewport').addEventListener('pointerdown', e => {
   if (!game || state !== 'roll' || isBot() || !cam) return;
   drag = { x: e.clientX, y: e.clientY, tx: cam.tx, ty: cam.ty };
   $('#world').style.transition = 'none';
-  $('#viewport').setPointerCapture(e.pointerId);
+  try { $('#viewport').setPointerCapture(e.pointerId); } catch {}
 });
 $('#viewport').addEventListener('pointermove', e => {
   if (!drag) return;
@@ -251,10 +258,21 @@ function renderSizes() {
   const players = lineup().length;
   $('#sizes').innerHTML = Object.entries(L.SIZES).map(([key, z]) =>
     `<button class="size ${key === mapSize ? 'on' : ''}" data-size="${key}" aria-label="${z.name} karta">${sizeIcon({ small: 2, medium: 3, large: 4 }[key])}<small>${ICONS.clock}${L.estimateMinutes(key, players)} min</small></button>`).join('');
+  $('#seasons').innerHTML = Object.entries(SEASONS).map(([key, z]) =>
+    `<button class="size season-pick ${key === seasonPick ? 'on' : ''}" data-season="${key}" aria-label="${z.name}">${ICONS[key]}<small>${{ spring: 'Vår', summer: 'Sommar', autumn: 'Höst', winter: 'Vinter' }[key]}</small></button>`).join('');
   const FOX_NAME = { kind: 'Snäll räv', normal: 'Vanlig räv', sly: 'Busig räv' };
   $('#foxLevels').innerHTML = Object.keys(L.FOX_LEVELS).map((lvl, i) =>
     `<button class="size fox-level ${lvl === foxLevel ? 'on' : ''}" data-fox="${lvl}" aria-label="${FOX_NAME[lvl]}"><span class="foxes">${ART.fox.repeat(i + 1)}</span><small>${FOX_NAME[lvl].split(' ')[0]}</small></button>`).join('');
 }
+$('#seasons').onclick = e => {
+  const key = e.target.closest('.size')?.dataset.season;
+  if (!key || key === seasonPick) return;
+  seasonPick = key;
+  savePlayers();
+  sfx.pop();
+  setSeason(seasonPick, false);
+  renderSizes();
+};
 $('#foxLevels').onclick = e => {
   const lvl = e.target.closest('.size')?.dataset.fox;
   if (!lvl || lvl === foxLevel) return;
@@ -276,8 +294,7 @@ $('#startBtn').onclick = startGame;
 // ---------- Spelet ----------
 function startGame() {
   sfx.good();
-  const keys = Object.keys(SEASONS);
-  setSeason(keys[Math.floor(Math.random() * keys.length)]);
+  setSeason(seasonPick, true);
   const who = lineup();
   game = L.createGame(who.map(p => p.name), board);
   shown.length = 0;
@@ -349,7 +366,8 @@ function setState(s) {
   const btn = $('#actionBtn');
   btn.disabled = s === 'busy';
   btn.className = 'btn action' + (s === 'busy' ? '' : ' pulse');
-  btn.innerHTML = s === 'roll' ? `${ICONS.dice} Slå tärningen` : '<span class="wait-dots"><i></i><i></i><i></i></span>';
+  btn.innerHTML = s === 'roll' ? `<span class="throw-dice">${ICONS.dice}</span><span class="throw-hint">${ICONS.arrowUp}</span>` : '<span class="wait-dots"><i></i><i></i><i></i></span>';
+  btn.classList.toggle('throw', s === 'roll');
   // Datorns tur: knappen är grå och visar att datorn spelar.
   if (game && !game.over && me().bot) {
     btn.disabled = true;
@@ -364,7 +382,8 @@ async function readyToRoll(line) {
   setState('roll');
   if (!isBot()) return say(line);
   await wait(1100);
-  roll();
+  // Datorn kastar med lite olika kraft och riktning, så det ser levande ut.
+  roll({ power: 0.35 + Math.random() * 0.5, dx: (Math.random() - 0.5) * 0.8, dy: -1 });
 }
 
 async function startTurn() {
@@ -382,15 +401,54 @@ async function startTurn() {
   readyToRoll('turn');
 }
 
-$('#actionBtn').onclick = () => {
-  if (!isBot() && state === 'roll') roll();
-};
+// Sikta: dra från tärningen. Ju längre man drar, desto hårdare kast. Släpp för att kasta. Ett snabbt tryck = lagom kast.
+const MAX_PULL = 260;
+let aim = null;
+$('#actionBtn').addEventListener('pointerdown', e => {
+  if (isBot() || state !== 'roll') return;
+  const r = $('#actionBtn').getBoundingClientRect();
+  aim = { x: r.left + r.width / 2, y: r.top + r.height / 2, dx: 0, dy: -1, power: 0, step: 0 };
+  try { $('#actionBtn').setPointerCapture(e.pointerId); } catch {}
+  showDiceAt(aim.x, aim.y - 10);
+  $('#aim').removeAttribute('hidden');
+  updateAim(e);
+});
+$('#actionBtn').addEventListener('pointermove', e => aim && updateAim(e));
+$('#actionBtn').addEventListener('pointerup', e => {
+  if (!aim) return;
+  updateAim(e);
+  const a = aim; aim = null;
+  $('#aim').setAttribute('hidden', '');
+  // Ett snabbt tryck utan att dra: lagom kast rakt uppåt.
+  const tap = a.power < 0.08;
+  roll(tap ? { power: 0.5, dx: (Math.random() - 0.5) * 0.4, dy: -1, x: a.x, y: a.y } : { power: a.power, dx: a.dx, dy: a.dy, x: a.x, y: a.y });
+});
+$('#actionBtn').addEventListener('pointercancel', () => { aim = null; $('#aim').setAttribute('hidden', ''); $('#diceZone').hidden = true; });
 
-async function roll() {
+function updateAim(e) {
+  const vx = e.clientX - aim.x, vy = e.clientY - aim.y, len = Math.hypot(vx, vy);
+  aim.power = Math.min(1, len / MAX_PULL);
+  if (len > 4) { aim.dx = vx / len; aim.dy = vy / len; }
+  const L2 = Math.min(len, MAX_PULL);
+  const ex = aim.x + aim.dx * L2, ey = aim.y + aim.dy * L2;
+  // Pilen: tjockare och rödare ju hårdare kast (grön = löst, gul = lagom, röd = hårt).
+  const line = $('#aimLine'), dot = $('#aimDot');
+  line.setAttribute('x1', aim.x); line.setAttribute('y1', aim.y); line.setAttribute('x2', ex); line.setAttribute('y2', ey);
+  line.style.stroke = dot.style.fill = `hsl(${120 - aim.power * 120} 85% 50%)`;
+  line.style.strokeWidth = 10 + aim.power * 16;
+  dot.setAttribute('cx', ex); dot.setAttribute('cy', ey); dot.setAttribute('r', 12 + aim.power * 10);
+  // Tärningen darrar mer ju hårdare man drar, och ett klick för varje nivå.
+  $('#diceWrap').style.setProperty('--shake', `${1 + aim.power * 5}px`);
+  const step = Math.floor(aim.power * 4);
+  if (step !== aim.step) { aim.step = step; sfx.aim(step); }
+}
+
+async function roll(t) {
   setState('busy');
   focusTile(me().pos); // tillbaka till spelaren om man har tittat runt
+  // Siffran är alltid slumpad och rättvis. Kastet styr hur tärningen flyger, studsar och rullar.
   const n = L.rollDie();
-  await rollDice(n);
+  await throwDice(n, t);
   await walk(n);
   await onLand();
 }
@@ -454,23 +512,79 @@ const FACE = { 1: [0, 0], 6: [0, 180], 3: [0, -90], 4: [0, 90], 5: [-90, 0], 2: 
 $('#cube').innerHTML = [1, 2, 3, 4, 5, 6].map(n =>
   `<div class="face f${n}">${[1, 2, 3, 4, 5, 6, 7, 8, 9].map(c => (PIPS[n].includes(c) ? `<i style="grid-area:${Math.ceil(c / 3)}/${(c - 1) % 3 + 1}"></i>` : '')).join('')}</div>`).join('');
 let spinX = 0, spinY = 0;
+const DICE = 96;
 
-async function rollDice(n) {
-  const zone = $('#diceZone'), cube = $('#cube');
-  zone.classList.remove('landed');
+function showDiceAt(x, y) {
+  const zone = $('#diceZone');
   zone.hidden = false;
-  sfx.roll();
-  spinX += 360 * (2 + Math.floor(Math.random() * 2));
-  spinY += 360 * (2 + Math.floor(Math.random() * 2));
-  void cube.offsetWidth;
+  zone.classList.remove('landed', 'flying');
+  zone.classList.add('aiming');
+  placeDice(x, y, 0);
+}
+function placeDice(x, y, z) {
+  $('#diceWrap').style.transform = `translate(${x - DICE / 2}px, ${y - DICE / 2 - z}px) scale(${1 + z / 500})`;
+  const sh = $('#diceShadow');
+  sh.style.transform = `translate(${x - DICE / 2}px, ${y - DICE / 4}px) scale(${Math.max(0.4, 1 - z / 400)})`;
+  sh.style.opacity = Math.max(0.15, 0.45 - z / 900);
+}
+
+async function throwDice(n, t = { power: 0.5, dx: 0, dy: -1 }) {
+  const zone = $('#diceZone'), cube = $('#cube');
+  const btn = $('#actionBtn').getBoundingClientRect();
+  const vp = $('#viewport').getBoundingClientRect();
+  const box = { l: vp.left + DICE / 2, r: vp.right - DICE / 2, t: vp.top + DICE / 2, b: innerHeight - DICE / 2 };
+  let x = t.x ?? btn.left + btn.width / 2, y = t.y ?? btn.top + btn.height / 2, z = 0;
+  showDiceAt(x, y);
+  zone.classList.remove('aiming');
+  zone.classList.add('flying');
+  // Kraft: löst kast rullar kort, hårt kast flyger långt och studsar flera gånger.
+  const p = Math.max(0.15, t.power), speed = 450 + 1500 * p;
+  let vx = t.dx * speed, vy = t.dy * speed, vz = 350 + 750 * p;
+  let rx = spinX + Math.random() * 90, ry = spinY + Math.random() * 90;
+  const spin = 0.9 + Math.random() * 0.4;
+  cube.style.transition = 'none';
+  sfx.whoosh(p);
+  await new Promise(done => {
+    let last = performance.now();
+    const step = now => {
+      const dt = Math.min(0.033, (now - last) / 1000); last = now;
+      vz -= 2300 * dt; z += vz * dt;
+      if (z <= 0) {
+        z = 0;
+        if (vz < -140) { sfx.knock(Math.min(1, -vz / 1000)); vz = -vz * 0.42; vx *= 0.78; vy *= 0.78; }
+        else vz = 0;
+      }
+      if (z === 0 && vz === 0) { const fr = Math.pow(0.12, dt); vx *= fr; vy *= fr; } // rullar och bromsar in
+      x += vx * dt; y += vy * dt;
+      // Studsa mot planens kanter.
+      if (x < box.l) { x = box.l; vx = Math.abs(vx) * 0.6; sfx.knock(0.3); }
+      if (x > box.r) { x = box.r; vx = -Math.abs(vx) * 0.6; sfx.knock(0.3); }
+      if (y < box.t) { y = box.t; vy = Math.abs(vy) * 0.6; sfx.knock(0.3); }
+      if (y > box.b) { y = box.b; vy = -Math.abs(vy) * 0.6; sfx.knock(0.3); }
+      // Tärningen rullar i den riktning den åker (ungefär ett varv per fyra sidor).
+      rx -= vy * 0.94 * spin * dt + (z > 0 ? vz * 0.15 * dt : 0);
+      ry += vx * 0.94 * spin * dt;
+      placeDice(x, y, z);
+      cube.style.transform = `rotateX(${rx}deg) rotateY(${ry}deg)`;
+      if (z === 0 && vz === 0 && Math.hypot(vx, vy) < 30) return done();
+      requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  });
+  // Lägg sig till rätta på rätt sida.
+  spinX = Math.round(rx / 360) * 360; spinY = Math.round(ry / 360) * 360;
+  cube.style.transition = 'transform .4s cubic-bezier(.3,1.5,.5,1)';
   cube.style.transform = `rotateX(${spinX + FACE[n][0]}deg) rotateY(${spinY + FACE[n][1]}deg)`;
-  await wait(1200);
+  await wait(420);
+  zone.classList.remove('flying');
   zone.classList.add('landed');
+  $('#sparks').style.cssText = `left:${x}px;top:${y}px`;
   sfx.land();
   if (n === 6) sfx.six();
   burst(n === 6 ? 26 : 12, n === 6 ? ['#ffe08a', '#fff', '#ffd54f', '#b2ff59'] : [me().color, '#fff']);
-  await wait(1100);
+  await wait(1000);
   zone.hidden = true;
+  zone.classList.remove('landed');
 }
 
 function burst(n, colors) {
