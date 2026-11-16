@@ -18,14 +18,16 @@ const api = (path, init = {}) => fetch(`https://api.elevenlabs.io${path}`, { ...
 // Vilken röst varje roll får: första namnet som finns i kontot används. Ändra fritt.
 // stability lägre = mer känsla och variation. style högre = mer inlevelse.
 const ROLES = {
-  fox:      { names: ['Callum', 'Charlie', 'Liam'], settings: { stability: 0.35, similarity_boost: 0.8, style: 0.55 } },
-  owl:      { names: ['Charlotte', 'Matilda', 'Alice'], settings: { stability: 0.5, similarity_boost: 0.8, style: 0.35 } },
-  squirrel: { names: ['Lily', 'Jessica', 'Laura'], settings: { stability: 0.3, similarity_boost: 0.8, style: 0.6 } },
-  hedgehog: { names: ['George', 'Daniel', 'Brian'], settings: { stability: 0.55, similarity_boost: 0.8, style: 0.3 } },
-  golden:   { names: ['Sarah', 'Alice', 'Matilda'], settings: { stability: 0.4, similarity_boost: 0.8, style: 0.5 } },
-  narrator: { names: ['Sarah', 'Matilda', 'Alice'], settings: { stability: 0.5, similarity_boost: 0.8, style: 0.35 } },
+  // Svenska röster från ElevenLabs bibliotek (tillagda i kontot: SV Ola, SV Louise, SV Olivia).
+  fox:      { names: ['SV Ola', 'Callum'],    settings: { stability: 0.3, similarity_boost: 0.85, style: 0.6 } },   // busig och listig
+  owl:      { names: ['SV Louise', 'Alice'], settings: { stability: 0.55, similarity_boost: 0.85, style: 0.3 } },  // varm och snäll
+  squirrel: { names: ['SV Olivia', 'Jessica'], settings: { stability: 0.3, similarity_boost: 0.85, style: 0.6 } },   // pigg och snabb
+  hedgehog: { names: ['SV Ola', 'George'],    settings: { stability: 0.6, similarity_boost: 0.85, style: 0.25 } },  // lugn och klok
+  golden:   { names: ['SV Olivia', 'Sarah'], settings: { stability: 0.4, similarity_boost: 0.85, style: 0.5 } },   // glittrande glad
+  narrator: { names: ['SV Louise', 'Sarah'], settings: { stability: 0.5, similarity_boost: 0.85, style: 0.3 } },
 };
-const MODEL = 'eleven_multilingual_v2'; // kan svenska
+// Modell: välj med --model=..., annars den nyaste som kan svenska.
+const MODEL = process.argv.find(x => x.startsWith('--model='))?.slice(8) || 'eleven_v4';
 const OUT = 'www/games/blabarsjakten/voice';
 
 const { voices } = await api('/v1/voices').then(r => {
@@ -36,8 +38,10 @@ if (process.argv.includes('--list')) {
   voices.forEach(v => console.log(`${v.name.padEnd(28)} ${v.voice_id}  ${v.labels?.gender ?? ''} ${v.labels?.accent ?? ''} ${v.labels?.age ?? ''}`));
   process.exit(0);
 }
+const SKIP_LIBRARY = process.argv.includes('--no-library');
 const pickVoice = role => {
-  const v = ROLES[role].names.map(n => voices.find(x => x.name.split(/\s|-/)[0].toLowerCase() === n.toLowerCase())).find(Boolean) || voices[0];
+  const v = ROLES[role].names.filter(n => !(SKIP_LIBRARY && n.startsWith('SV '))).map(n => voices.find(x => x.name.toLowerCase().startsWith(n.toLowerCase()))).find(Boolean);
+  if (!v) throw new Error(`Rösten för ${role} (${ROLES[role].names}) finns inte i kontot`);
   return v.voice_id;
 };
 const voiceOf = Object.fromEntries(Object.keys(ROLES).map(r => [r, pickVoice(r)]));
@@ -56,7 +60,7 @@ async function say(text, file, role, dir = OUT) {
 }
 
 if (process.argv.includes('--sample')) {
-  const dir = 'rostprover/elevenlabs';
+  const dir = `rostprover/elevenlabs-${MODEL}`;
   mkdirSync(dir, { recursive: true });
   await say(DECKS.fox[2].text, 'rav', 'fox', dir);
   await say(DECKS.owl[0].text, 'uggla', 'owl', dir);

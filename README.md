@@ -45,6 +45,17 @@ npm run voices
 npm run voices -- --all
 ```
 
+## Röster med ElevenLabs
+
+Korten, berättaren och reglerna är inlästa med ElevenLabs (gratiskonto, kräver att "elevenlabs.io" anges, det står i reglerna).
+Nyckeln ligger i `.env.local` (följer aldrig med till GitHub). Gör röster för nya eller ändrade kort:
+
+```bash
+node scripts/make-voices-eleven.mjs --no-library --model=eleven_v4
+```
+
+Utan nyckel går det att använda Microsofts röster i stället: `npm run voices`.
+
 ## Lägga till ett nytt spel
 
 1. Skapa en mapp under `www/games/`.

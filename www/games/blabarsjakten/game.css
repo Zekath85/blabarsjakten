@@ -678,3 +678,5 @@ body.calm .cloud { animation: none; }
 /* Inställningarna öppna: bara högtalaren syns (den stänger rutan), och rutan börjar under knapparna. */
 body.sound-open .icon-btn:not(#soundBtn) { display: none; }
 #soundPanel { padding-top: 96px; }
+
+.panel .credits { font-size: 14px; opacity: .6; margin: 4px 0 10px; }
