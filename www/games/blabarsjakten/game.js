@@ -862,7 +862,8 @@ function watchSpeed() {
   requestAnimationFrame(tick);
 }
 
-addEventListener('pointerdown', () => { if (!music.playing) music.play(inGame() ? SONGS[settings.get('song')] || SONGS.theme : MENU_SONG); }, { once: true });
+// Lugn menymusik så fort sidan öppnas (eller vid första trycket om plattan kräver det).
+music.autostart(MENU_SONG);
 
 fillIcons();
 renderSetup();

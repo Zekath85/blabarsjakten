@@ -180,6 +180,16 @@ export const music = {
     timer = setInterval(tick, 40);
     applyVolume();
   },
+  // Starta direkt när sidan öppnas. Säger webbläsaren nej (inget tryck än) väntar musiken på första trycket.
+  // Obs: på pekskärm räknas bara när fingret lyfts (pointerup/touchend/click), inte när det trycker ner.
+  autostart(s) {
+    this.play(s);
+    if (ctx.state === 'running') return;
+    const go = () => ctx.resume().then(() => {
+      if (ctx.state === 'running') ['pointerup', 'touchend', 'click', 'keydown'].forEach(e => removeEventListener(e, go, true));
+    });
+    ['pointerup', 'touchend', 'click', 'keydown'].forEach(e => addEventListener(e, go, true));
+  },
   stop() { if (ctx) fadeOut(ctx.currentTime); clearInterval(timer); timer = null; song = null; },
   get playing() { return !!timer; },
   applyVolume,
