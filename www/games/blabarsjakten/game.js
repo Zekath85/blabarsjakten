@@ -532,57 +532,73 @@ function placeDice(x, y, z) {
   sh.style.opacity = Math.max(0.15, 0.45 - z / 900);
 }
 
+// Räkna ut hela kastet i förväg (fasta steg, 60 per sekund): var tärningen är och hur mycket den har rullat.
+const DT = 1 / 60;
+function simulateThrow(x, y, t, box) {
+  const p = Math.max(0.15, t.power), speed = 450 + 1500 * p;
+  let vx = t.dx * speed, vy = t.dy * speed, vz = 350 + 750 * p, z = 0, rx = 0, ry = 0;
+  const spin = 0.9 + Math.random() * 0.4, frames = [];
+  for (let i = 0; i < 900; i++) {
+    let knock = 0;
+    vz -= 2300 * DT; z += vz * DT;
+    if (z <= 0) {
+      z = 0;
+      if (vz < -140) { knock = Math.min(1, -vz / 1000); vz = -vz * 0.42; vx *= 0.78; vy *= 0.78; }
+      else vz = 0;
+    }
+    if (z === 0 && vz === 0) { const fr = Math.pow(0.12, DT); vx *= fr; vy *= fr; } // rullar och bromsar in
+    x += vx * DT; y += vy * DT;
+    // Studsa mot planens kanter.
+    if (x < box.l) { x = box.l; vx = Math.abs(vx) * 0.6; knock = knock || 0.3; }
+    if (x > box.r) { x = box.r; vx = -Math.abs(vx) * 0.6; knock = knock || 0.3; }
+    if (y < box.t) { y = box.t; vy = Math.abs(vy) * 0.6; knock = knock || 0.3; }
+    if (y > box.b) { y = box.b; vy = -Math.abs(vy) * 0.6; knock = knock || 0.3; }
+    // Tärningen rullar i den riktning den åker (ungefär ett varv per fyra sidor).
+    rx -= vy * 0.94 * spin * DT + (z > 0 ? vz * 0.15 * DT : 0);
+    ry += vx * 0.94 * spin * DT;
+    frames.push({ x, y, z, rx, ry, knock });
+    if (z === 0 && vz === 0 && Math.hypot(vx, vy) < 30) break;
+  }
+  return { frames, power: p };
+}
+
 async function throwDice(n, t = { power: 0.5, dx: 0, dy: -1 }) {
   const zone = $('#diceZone'), cube = $('#cube');
   const btn = $('#actionBtn').getBoundingClientRect();
   const vp = $('#viewport').getBoundingClientRect();
   const box = { l: vp.left + DICE / 2, r: vp.right - DICE / 2, t: vp.top + DICE / 2, b: innerHeight - DICE / 2 };
-  let x = t.x ?? btn.left + btn.width / 2, y = t.y ?? btn.top + btn.height / 2, z = 0;
-  showDiceAt(x, y);
+  const x0 = t.x ?? btn.left + btn.width / 2, y0 = t.y ?? btn.top + btn.height / 2;
+  showDiceAt(x0, y0);
   zone.classList.remove('aiming');
   zone.classList.add('flying');
-  // Kraft: löst kast rullar kort, hårt kast flyger långt och studsar flera gånger.
-  const p = Math.max(0.15, t.power), speed = 450 + 1500 * p;
-  let vx = t.dx * speed, vy = t.dy * speed, vz = 350 + 750 * p;
-  let rx = spinX + Math.random() * 90, ry = spinY + Math.random() * 90;
-  const spin = 0.9 + Math.random() * 0.4;
+  // Siffran n är redan slumpad (rättvist). Vi vet hur långt tärningen kommer att rulla,
+  // så vi vrider den från början så att den rullar hela vägen och stannar med n uppåt.
+  const { frames, power } = simulateThrow(x0, y0, t, box);
+  const last = frames.at(-1);
+  const rx0 = FACE[n][0] - last.rx + 360 * Math.round(Math.random() * 2);
+  const ry0 = FACE[n][1] - last.ry + 360 * Math.round(Math.random() * 2);
   cube.style.transition = 'none';
-  sfx.whoosh(p);
+  sfx.whoosh(power);
   await new Promise(done => {
-    let last = performance.now();
+    const t0 = performance.now();
+    let shown = -1;
     const step = now => {
-      const dt = Math.min(0.033, (now - last) / 1000); last = now;
-      vz -= 2300 * dt; z += vz * dt;
-      if (z <= 0) {
-        z = 0;
-        if (vz < -140) { sfx.knock(Math.min(1, -vz / 1000)); vz = -vz * 0.42; vx *= 0.78; vy *= 0.78; }
-        else vz = 0;
-      }
-      if (z === 0 && vz === 0) { const fr = Math.pow(0.12, dt); vx *= fr; vy *= fr; } // rullar och bromsar in
-      x += vx * dt; y += vy * dt;
-      // Studsa mot planens kanter.
-      if (x < box.l) { x = box.l; vx = Math.abs(vx) * 0.6; sfx.knock(0.3); }
-      if (x > box.r) { x = box.r; vx = -Math.abs(vx) * 0.6; sfx.knock(0.3); }
-      if (y < box.t) { y = box.t; vy = Math.abs(vy) * 0.6; sfx.knock(0.3); }
-      if (y > box.b) { y = box.b; vy = -Math.abs(vy) * 0.6; sfx.knock(0.3); }
-      // Tärningen rullar i den riktning den åker (ungefär ett varv per fyra sidor).
-      rx -= vy * 0.94 * spin * dt + (z > 0 ? vz * 0.15 * dt : 0);
-      ry += vx * 0.94 * spin * dt;
-      placeDice(x, y, z);
-      cube.style.transform = `rotateX(${rx}deg) rotateY(${ry}deg)`;
-      if (z === 0 && vz === 0 && Math.hypot(vx, vy) < 30) return done();
+      // (now kan ligga en aning före t0 i första bildrutan, därför max 0)
+      const i = Math.max(0, Math.min(frames.length - 1, Math.floor((now - t0) / 1000 / DT)));
+      for (let k = shown + 1; k <= i; k++) if (frames[k].knock) sfx.knock(frames[k].knock); // ljud för varje studs
+      shown = i;
+      const f = frames[i];
+      placeDice(f.x, f.y, f.z);
+      cube.style.transform = `rotateX(${rx0 + f.rx}deg) rotateY(${ry0 + f.ry}deg)`;
+      if (i === frames.length - 1) return done();
       requestAnimationFrame(step);
     };
     requestAnimationFrame(step);
   });
-  // Lägg sig till rätta på rätt sida.
-  spinX = Math.round(rx / 360) * 360; spinY = Math.round(ry / 360) * 360;
-  cube.style.transition = 'transform .4s cubic-bezier(.3,1.5,.5,1)';
-  cube.style.transform = `rotateX(${spinX + FACE[n][0]}deg) rotateY(${spinY + FACE[n][1]}deg)`;
-  await wait(420);
+  spinX = rx0 + last.rx; spinY = ry0 + last.ry; // exakt rätt sida uppåt, ingen vridning i efterhand
   zone.classList.remove('flying');
   zone.classList.add('landed');
-  $('#sparks').style.cssText = `left:${x}px;top:${y}px`;
+  $('#sparks').style.cssText = `left:${last.x}px;top:${last.y}px`;
   sfx.land();
   if (n === 6) sfx.six();
   burst(n === 6 ? 26 : 12, n === 6 ? ['#ffe08a', '#fff', '#ffd54f', '#b2ff59'] : [me().color, '#fff']);
