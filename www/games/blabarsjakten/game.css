@@ -674,3 +674,7 @@ body.calm .cloud { animation: none; }
 /* Fyra spelare på en smal skärm: korgikonen göms så att alla får plats på en rad. */
 @media (max-width: 600px) { .scores.many .chip .bk { display: none; } .scores.many .chip { flex: 1 1 0; } .scores.many .chip b { max-width: none; flex: 1 1 auto; } .scores.many .chip.on { transform: none; } }
 #play { grid-template-columns: minmax(0, 1fr); } /* raderna får aldrig bli bredare än skärmen */
+
+/* Inställningarna öppna: bara högtalaren syns (den stänger rutan), och rutan börjar under knapparna. */
+body.sound-open .icon-btn:not(#soundBtn) { display: none; }
+#soundPanel { padding-top: 96px; }

@@ -820,7 +820,15 @@ function renderSongs() {
   $('#songList').innerHTML = Object.entries(SONGS).map(([key, s]) =>
     `<button class="song ${key === settings.get('song') ? 'on' : ''}" data-song="${key}">${SONG_ICON[key] || ''}<small>${s.name}</small></button>`).join('');
 }
+// Högtalaren öppnar inställningarna, och ett tryck till stänger dem. När de är öppna döljs de andra knapparna.
+function closeSoundPanel() {
+  $('#soundPanel').hidden = true;
+  document.body.classList.remove('sound-open');
+  if (!inGame()) music.play(MENU_SONG);
+}
 $('#soundBtn').onclick = () => {
+  if (!$('#soundPanel').hidden) return closeSoundPanel();
+  document.body.classList.add('sound-open');
   document.querySelectorAll('[data-pref]').forEach(cb => (cb.checked = settings.get(cb.dataset.pref)));
   $('#musicVol').value = settings.get('musicVol');
   renderSongs();
@@ -837,10 +845,7 @@ $('#songList').onclick = e => {
 };
 $('#musicVol').oninput = e => settings.set('musicVol', +e.target.value);
 $('#soundPanel').onchange = e => { settings.set(e.target.dataset.pref, e.target.checked); soundIcon(); };
-$('#closeSoundBtn').onclick = () => {
-  $('#soundPanel').hidden = true;
-  if (!inGame()) music.play(MENU_SONG);
-};
+$('#closeSoundBtn').onclick = closeSoundPanel;
 soundIcon();
 $('#rulesBtn').onclick = () => ($('#rules').hidden = false);
 
