@@ -1,0 +1,1932 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#161826">
+<title>Sand Spelet</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%23161826'/%3E%3Cpath d='M30 70 L50 34 L70 70 Z' fill='%23d9b56a'/%3E%3Ccircle cx='62' cy='30' r='6' fill='%234f8fd6'/%3E%3C/svg%3E">
+<style>
+  :root {
+    --color-bg: #161826;
+    --color-text: #e9e9ed;
+    --color-accent: #9184d9;
+    --color-accent-300: #d2cefd;
+    --color-neutral-200: #e4e7f5;
+    --color-neutral-300: #cfd3e5;
+    --color-neutral-600: #75798c;
+    --color-neutral-700: #595d6c;
+    --color-neutral-800: #3f424d;
+    --color-neutral-900: #292b31;
+    --font-heading: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --font-body: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --radius-lg: 14px;
+    --shadow-md: 0 0 0 1px #595d6c, 0 6px 18px rgba(0,0,0,0.55);
+    --shadow-lg: 0 0 0 1px #9397ab, 0 16px 40px rgba(0,0,0,0.65);
+  }
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { margin:0; height:100%; background:var(--color-bg); overflow:hidden; overscroll-behavior:none; }
+  body { color:var(--color-text); font-family:var(--font-body); font-size:15px; line-height:1.55; }
+  canvas { image-rendering: pixelated; }
+  button { -webkit-tap-highlight-color:transparent; touch-action:manipulation; line-height:1.55; }
+  :focus { outline:none; }
+  button:focus-visible { outline:2px solid var(--color-accent); outline-offset:2px; }
+  .tool { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; padding:0; cursor:pointer;
+    font-family:var(--font-body); width:64px; height:64px; flex-shrink:0; border-radius:var(--radius-lg); color:var(--color-text); }
+  .tool i { font-size:28px; }
+  .tool span { font-size:11px; color:var(--color-neutral-300); }
+  .pic { font-size:44px; line-height:1; opacity:var(--pic-o, 1); font-family:"Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji",sans-serif; }
+  .rule { width:40px; height:1px; flex-shrink:0; background:var(--color-neutral-800); }
+  .pill { height:60px; display:flex; align-items:center; gap:10px; padding:0 22px; cursor:pointer; font-family:var(--font-body);
+    font-size:17px; font-weight:500; border-radius:999px; color:var(--color-text); }
+</style>
+</head>
+<body>
+<div id="app" style="position:fixed;inset:0;height:100dvh;display:flex;flex-direction:column;background:var(--color-bg);color:var(--color-text);font-family:var(--font-body);font-size:14px;overflow:hidden;user-select:none;-webkit-user-select:none">
+  <div style="flex:1;min-height:0;display:flex">
+    <div id="wrap" style="position:relative;flex:1;min-width:0;background:var(--color-bg);overflow:hidden;cursor:crosshair">
+      <canvas id="cv" style="display:block;width:100%;height:100%;touch-action:none"></canvas>
+      <div id="nozzle" style="position:absolute;top:0;width:2px;height:16px;background:currentColor;opacity:0;transform:translateX(-1px);pointer-events:none"></div>
+      <button type="button" id="back" aria-label="Tillbaka" style="position:absolute;top:12px;left:12px;z-index:2;width:56px;height:56px;display:flex;align-items:center;justify-content:center;padding:0;cursor:pointer;border-radius:50%;border:3px solid var(--color-neutral-700);background:var(--color-neutral-900)"><span class="pic" aria-hidden="true" style="font-size:30px">⬅️</span></button>
+      <div id="hud"></div>
+    </div>
+    <div id="rail" style="width:84px;flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:10px;padding:12px 0;border-left:1px solid var(--color-neutral-800);overflow-y:auto"></div>
+  </div>
+  <div id="bottom" style="display:flex;flex-direction:column;gap:10px;padding:10px 12px 12px;border-top:1px solid var(--color-neutral-800)"></div>
+  <div id="overlay"></div>
+</div>
+<script>
+// ---- minimal runtime in place of the design tool's component base ----
+const React = { createRef: () => ({ current: null }) };
+let renderQueued = false;
+function scheduleRender(){
+  if (renderQueued) return;
+  renderQueued = true;
+  queueMicrotask(() => { renderQueued = false; render(); });
+}
+class DCLogic {
+  constructor(){ this.props = { fallInterval: 2 }; }
+  setState(p){
+    const patch = typeof p === 'function' ? p(this.state) : p;
+    if (patch) Object.assign(this.state, patch);
+    scheduleRender();
+  }
+}
+
+// ---- game (simulation, levels, creatures) ----
+const EMPTY=0, SAND=1, WATER=2, STONE=3, SOIL=4, SEED=5, WOOD=6, LEAF=7, GRASS=8, FIRE=9, ASH=10, STEAM=11, CLOUD=12,
+      OIL=13, ACID=14, LAVA=15, ICE=16, GLASS=17, POWDER=18, SNOW=19, SALT=20, GAS=21, LIFE=22,
+      METAL=23, SPARK=24, SMOKE=25, SLIME=26, CRYSTAL=27, MOSS=28, PORTAL=29, ANTI=30;
+const MAXW=7;
+// puzzle levels: build() lays out the world, goal() returns progress 0..1
+const LEVELS = [
+  { name:'Töm skålen', text:'Ta bort allt vatten', icon:'ph-fill ph-drop-slash', tint:'#4f8fd6', tools:[FIRE], noClouds:true,
+    build(g){ const r = g.lvBowl(0.2,0.8,0.42,0.82); g.lvFill(r, WATER); g.lv = {r, start:g.lvCount(r,[WATER])}; },
+    goal(g){ return 1 - g.lvCount(g.lv.r,[WATER]) / Math.max(1, g.lv.start*0.97); } },
+  { name:'Fiskar i dammen', text:'Sätt tre fiskar i vattnet', icon:'ph-fill ph-fish', tint:'#e2934a', tools:[LIFE],
+    build(g){ const r = g.lvBowl(0.12,0.88,0.45,0.85); g.lvFill({x0:r.x0,x1:r.x1,y0:r.y0+Math.round((r.y1-r.y0)*0.2),y1:r.y1}, WATER); g.lv = {r}; },
+    goal(g){ return (g.critters||[]).filter(c => c.kind==='fish'||c.kind==='pike').length / 3; } },
+  { name:'Få det att växa', text:'Vattna jorden och sätt frön', icon:'ph-fill ph-plant', tint:'#6fb865', tools:[WATER, SEED],
+    build(g){ g.lvRect(0,0.84,1,1,STONE); g.lvRect(0,0.74,1,0.84,SOIL); g.lv = {r:{x0:0,x1:g.cols-1,y0:0,y1:g.rows-1}, need:Math.round(g.cols*0.9)}; },
+    goal(g){ return g.lvCount(g.lv.r,[GRASS,LEAF,WOOD]) / g.lv.need; } },
+  { name:'Smält isen', text:'Smält bort isblocket', icon:'ph-fill ph-snowflake', tint:'#a9d8ea', tools:[SALT], noFreeze:true,
+    build(g){ g.lvRect(0,0.84,1,1,STONE); const r = g.lvRect(0.28,0.5,0.72,0.84,ICE); g.lv = {r, start:g.lvCount(r,[ICE])}; },
+    goal(g){ return 1 - g.lvCount(g.lv.r,[ICE]) / Math.max(1, g.lv.start*0.97); } },
+  { name:'Stoppa lavan', text:'Gör om all lava till sten', icon:'ph-fill ph-thermometer-hot', tint:'#e5502a', tools:[WATER, SNOW], keepLava:true, noClouds:true,
+    build(g){ const r = g.lvBowl(0.18,0.82,0.5,0.86); g.lvFill(r, LAVA); g.lv = {r, start:g.lvCount(r,[LAVA])}; },
+    goal(g){ return 1 - g.lvCount(g.lv.r,[LAVA]) / Math.max(1, g.lv.start*0.97); } },
+  { name:'Gräv ut grottan', text:'Ta bort all sand', icon:'ph-fill ph-flask', tint:'#a6d63c', tools:[ACID],
+    build(g){ const r = g.lvBowl(0.2,0.8,0.38,0.84); g.lvFill(r, SAND); g.lv = {r, start:g.lvCount(r,[SAND])}; },
+    goal(g){ return 1 - g.lvCount(g.lv.r,[SAND]) / Math.max(1, g.lv.start*0.95); } },
+  { name:'Fyll skålen', text:'Smält isen så skålen fylls', icon:'ph-fill ph-fire', tint:'#ef7a1e', tools:[FIRE], noFreeze:true, noClouds:true,
+    build(g){ const r = g.lvBowl(0.28,0.72,0.62,0.88); g.lvRect(0.24,0.18,0.76,0.4,ICE); g.lv = {r, need:Math.round((r.x1-r.x0+1)*(r.y1-r.y0+1)*0.45)}; },
+    goal(g){ return g.lvCount(g.lv.r,[WATER]) / g.lv.need; } },
+  { name:'Flytta vattnet', text:'Få vattnet till andra skålen', icon:'ph-bold ph-spiral', tint:'#4f9be6', tools:[PORTAL], noClouds:true,
+    build(g){
+      const a = g.lvBowl(0.04,0.44,0.5,0.86), b = g.lvBowl(0.56,0.96,0.5,0.86);
+      g.lvRect(0.47,0.12,0.53,0.86,STONE); g.lvFill(a, WATER);
+      g.lv = {r:b, start:g.lvCount(a,[WATER])};
+    },
+    goal(g){ return g.lvCount(g.lv.r,[WATER]) / Math.max(1, g.lv.start*0.5); } }
+];
+const FIRE_LIFE={6:70, 7:26, 8:22, 5:20, 13:90, 21:16, 28:20};
+const IGNITE_P={6:0.045, 7:0.22, 8:0.16, 5:0.12, 13:0.4, 21:0.9, 28:0.18};
+const PIGMENTS=[
+  {name:'Saffron', rgb:[244,196,78]},
+  {name:'Ember', rgb:[227,111,54]},
+  {name:'Rose', rgb:[214,71,122]},
+  {name:'Violet', rgb:[145,132,217]},
+  {name:'Cobalt', rgb:[59,124,222]},
+  {name:'Jade', rgb:[47,180,133]},
+  {name:'Bone', rgb:[226,221,208]},
+  {name:'Graphite', rgb:[110,118,128]}
+];
+const LE = (() => { const b=new ArrayBuffer(4), u8=new Uint8Array(b), u32=new Uint32Array(b); u32[0]=0x0a0b0c0d; return u8[0]===0x0d; })();
+function pack(r,g,b){
+  r=r<0?0:r>255?255:r|0; g=g<0?0:g>255?255:g|0; b=b<0?0:b>255?255:b|0;
+  return LE ? ((255<<24)|(b<<16)|(g<<8)|r)>>>0 : ((r<<24)|(g<<16)|(b<<8)|255)>>>0;
+}
+function hsl(h,s,l){
+  h=((h%360)+360)%360; s/=100; l/=100;
+  const c=(1-Math.abs(2*l-1))*s, x=c*(1-Math.abs((h/60)%2-1)), m=l-c/2;
+  let r,g,b;
+  if(h<60){r=c;g=x;b=0} else if(h<120){r=x;g=c;b=0} else if(h<180){r=0;g=c;b=x}
+  else if(h<240){r=0;g=x;b=c} else if(h<300){r=x;g=0;b=c} else {r=c;g=0;b=x}
+  return pack((r+m)*255,(g+m)*255,(b+m)*255);
+}
+function jitter(idx){ const h=(idx*2654435761)>>>0; return ((h>>>16)&15)/15; }
+
+class Component extends DCLogic {
+  state = { material: SAND, mode: 'paint', brush: 5, cat: 'nature', clearArm: false, lvl: null, picker: false, won: false, prog: 0, done: [], paused: false, pigment: 0, spectrum: false, count: 0, shape: 'disc' };
+  canvasRef = React.createRef();
+  wrapRef = React.createRef();
+  nozzleRef = React.createRef();
+
+  componentDidMount(){
+    try { const d = JSON.parse(localStorage.getItem('sandfall-levels-done') || '[]'); if (Array.isArray(d)) this.state.done = d; } catch(e){}
+    this.BG = pack(22,24,38);
+    this.cols = 0; this.rows = 0; this.growers = []; this.critters = [];
+    this.wormDir = {x:0,y:0};
+    this.WORM_LEN = 18;
+    this.hue = 30; this.frame = 0;
+    this.down = false; this.px = 0; this.py = 0;
+    this.ctx = this.canvasRef.current.getContext('2d', {alpha:false});
+    const wrap = this.wrapRef.current;
+
+    const cell = e => {
+      const r = this.canvasRef.current.getBoundingClientRect();
+      this.px = Math.floor((e.clientX-r.left)/r.width*this.cols);
+      this.py = Math.floor((e.clientY-r.top)/r.height*this.rows);
+    };
+    this.onDown = e => {
+      if (e.button) return;
+      this.snapshot();
+      this.down = true;
+      this.pressId = (this.pressId||0)+1;
+      if (this.state.material===PORTAL) this.portalSide = this.portalSide===1 ? 2 : 1;
+      wrap.setPointerCapture && wrap.setPointerCapture(e.pointerId);
+      cell(e); this.nozzle(e); this.pour(); e.preventDefault();
+    };
+    this.onMove = e => { if(!this.down) return; cell(e); this.nozzle(e); if(this.state.mode==='paint') this.pour(); e.preventDefault(); };
+    this.onUp = () => { this.down = false; if (this.nozzleRef.current) this.nozzleRef.current.style.opacity = 0; };
+    wrap.addEventListener('pointerdown', this.onDown);
+    wrap.addEventListener('pointermove', this.onMove);
+    window.addEventListener('pointerup', this.onUp);
+    window.addEventListener('pointercancel', this.onUp);
+
+    this.onKey = e => {
+      if (e.target.tagName === 'INPUT') return;
+      if (e.code === 'Space'){ e.preventDefault(); this.setState(s=>({paused:!s.paused})); return; }
+      if ((e.ctrlKey||e.metaKey) && (e.key==='z'||e.key==='Z')){ e.preventDefault(); this.undo(); return; }
+      if (e.key === 'c' || e.key === 'C'){ this.clear(); return; }
+    };
+    window.addEventListener('keydown', this.onKey);
+
+    this.resize();
+    this.raf = requestAnimationFrame(this.tick);
+  }
+
+  componentWillUnmount(){
+    cancelAnimationFrame(this.raf);
+    window.removeEventListener('pointerup', this.onUp);
+    window.removeEventListener('pointercancel', this.onUp);
+    window.removeEventListener('keydown', this.onKey);
+  }
+
+  // ---- grid ----
+  resize(){
+    const wrap = this.wrapRef.current;
+    if (!wrap) return;
+    const w = wrap.clientWidth, h = wrap.clientHeight;
+    if (w<2||h<2) return;
+    const cell = Math.max(3, Math.ceil(w/260));
+    const nc = Math.max(40, Math.round(w/cell)), nr = Math.max(40, Math.round(h/cell));
+    if (nc===this.cols && nr===this.rows && this.img) return;
+    const oldType=this.type, oldColor=this.color, oldAux=this.aux, oldStill=this.still, oc=this.cols, or_=this.rows;
+    this.cols=nc; this.rows=nr;
+    const n = nc*nr;
+    this.type=new Uint8Array(n); this.color=new Uint32Array(n); this.aux=new Uint8Array(n);
+    this.still=new Uint8Array(n);
+    this.fuel=new Uint8Array(n);
+    this.proc=new Uint8Array(n);
+    this.cloudLine = Math.max(3, Math.round(nr*0.16));
+    this.wind = 1;
+    this.color.fill(this.BG);
+    if (oldType){
+      const dy=nr-or_, cw=Math.min(oc,nc);
+      for (let y=0;y<or_;y++){
+        const ny=y+dy; if(ny<0||ny>=nr) continue;
+        for (let x=0;x<cw;x++){
+          this.type[ny*nc+x]=oldType[y*oc+x];
+          this.color[ny*nc+x]=oldColor[y*oc+x];
+          this.aux[ny*nc+x]=oldAux[y*oc+x];
+          if (oldStill) this.still[ny*nc+x]=oldStill[y*oc+x];
+        }
+      }
+      this.growers = this.growers.filter(g => { g.y+=dy; g.ry+=dy; return g.x<nc && g.y>=0 && g.y<nr && g.ry<nr; });
+    }
+    const c = this.canvasRef.current;
+    c.width=nc; c.height=nr;
+    this.img = this.ctx.createImageData(nc,nr);
+    this.buf = new Uint32Array(this.img.data.buffer);
+  }
+
+  snapshot(){
+    if (!this.type) return;
+    this.undoStack = this.undoStack || [];
+    this.undoStack.push({
+      cols: this.cols, rows: this.rows,
+      type: this.type.slice(), color: this.color.slice(), aux: this.aux.slice(), still: this.still.slice(),
+      growers: this.growers.map(g => Object.assign({}, g))
+    });
+    if (this.undoStack.length > 16) this.undoStack.shift();
+    this.setState({undos: this.undoStack.length});
+  }
+
+  undo = () => {
+    const snap = this.undoStack && this.undoStack.pop();
+    if (!snap) return;
+    if (snap.cols === this.cols && snap.rows === this.rows){
+      this.type.set(snap.type); this.color.set(snap.color); this.aux.set(snap.aux);
+      if (snap.still) this.still.set(snap.still);
+    } else {
+      this.cols = snap.cols; this.rows = snap.rows;
+      this.type = snap.type.slice(); this.color = snap.color.slice(); this.aux = snap.aux.slice();
+      this.still = snap.still ? snap.still.slice() : new Uint8Array(this.cols*this.rows);
+      const c = this.canvasRef.current;
+      c.width = this.cols; c.height = this.rows;
+      this.img = this.ctx.createImageData(this.cols, this.rows);
+      this.buf = new Uint32Array(this.img.data.buffer);
+    }
+    this.growers = snap.growers;
+    this.setState({undos: this.undoStack.length});
+  };
+
+  clear = () => {
+    if (this.state.lvl!=null){ this.startLevel(this.state.lvl); return; }
+    this.snapshot();
+    this.type.fill(EMPTY); this.color.fill(this.BG); this.aux.fill(0);
+    this.still.fill(0);
+    this.fuel.fill(0);
+    this.proc.fill(0);
+    this.growers.length = 0;
+    this.critters = [];
+  };
+
+  placeCell(i,t){
+    const {type,color,aux} = this;
+    type[i]=t; this.still[i]=0; this.proc[i]=1;
+    if (t===FIRE){ this.fuel[i]=0; aux[i]=12+((Math.random()*14)|0); color[i]=this.fireColor(1,1); }
+    else if (t===ACID){ aux[i]=0; color[i]=this.acidColor(); }
+  }
+
+  // ---- puzzle levels ----
+  lvCell(i,m){
+    const prev = this.state.material, prevSpec = this.state.spectrum;
+    this.state.material = m; this.state.spectrum = false;
+    this.type[i]=m; this.color[i]=this.grainColor(i); this.aux[i]=0; this.still[i]=0;
+    this.state.material = prev; this.state.spectrum = prevSpec;
+  }
+  lvRect(fx0,fy0,fx1,fy1,m){
+    const {cols,rows} = this;
+    const r = {x0:Math.max(0,Math.round(fx0*cols)), x1:Math.min(cols-1,Math.round(fx1*cols)-1),
+               y0:Math.max(0,Math.round(fy0*rows)), y1:Math.min(rows-1,Math.round(fy1*rows)-1)};
+    this.lvFill(r,m);
+    return r;
+  }
+  lvFill(r,m){ for (let y=r.y0;y<=r.y1;y++) for (let x=r.x0;x<=r.x1;x++) this.lvCell(y*this.cols+x, m); }
+  // a stone U; returns the hollow inside it
+  lvBowl(fx0,fx1,fyTop,fyBot){
+    const {cols,rows} = this, t = Math.max(2, Math.round(cols*0.018));
+    const x0 = Math.round(fx0*cols), x1 = Math.min(cols-1, Math.round(fx1*cols)-1);
+    const y0 = Math.round(fyTop*rows), y1 = Math.min(rows-1, Math.round(fyBot*rows)-1);
+    this.lvFill({x0, x1:x0+t-1, y0, y1}, STONE);
+    this.lvFill({x0:x1-t+1, x1, y0, y1}, STONE);
+    this.lvFill({x0, x1, y0:y1-t+1, y1}, STONE);
+    return {x0:x0+t, x1:x1-t, y0, y1:y1-t};
+  }
+  lvCount(r,types){
+    let n = 0; const {cols,type} = this;
+    for (let y=r.y0;y<=r.y1;y++) for (let x=r.x0;x<=r.x1;x++) if (types.includes(type[y*cols+x])) n++;
+    return n;
+  }
+  wipeWorld(){
+    this.type.fill(EMPTY); this.color.fill(this.BG); this.aux.fill(0);
+    this.still.fill(0); this.fuel.fill(0); this.proc.fill(0);
+    this.growers.length = 0; this.critters = []; this.zapCells = null;
+    this.portals = {1:[],2:[]}; this.portalSide = 2;
+    this.undoStack = [];
+  }
+  startLevel(i){
+    const L = LEVELS[i]; if (!L || !this.type) return;
+    this.wipeWorld();
+    this.noClouds = !!L.noClouds; this.noFreeze = !!L.noFreeze; this.keepLava = !!L.keepLava;
+    L.build(this);
+    this.winHold = 0;
+    this.setState({lvl:i, picker:false, won:false, prog:0, material:L.tools[0], mode:'paint', undos:0, spectrum:false});
+  }
+  exitLevel(){
+    this.wipeWorld();
+    this.noClouds = this.noFreeze = this.keepLava = false;
+    this.lv = null;
+    this.setState({lvl:null, picker:false, won:false, prog:0, undos:0, material:SAND});
+  }
+  checkGoal(){
+    const i = this.state.lvl;
+    if (i==null || this.state.won || !this.lv) return;
+    const p = Math.max(0, Math.min(1, LEVELS[i].goal(this)));
+    if (Math.abs(p - this.state.prog) > 0.01) this.setState({prog:p});
+    this.winHold = p>=1 ? (this.winHold||0)+1 : 0;
+    if (this.winHold >= 3){
+      const done = Array.from(new Set([...(this.state.done||[]), i]));
+      try { localStorage.setItem('sandfall-levels-done', JSON.stringify(done)); } catch(e){}
+      this.setState({won:true, prog:1, done});
+    }
+  }
+
+  // ---- life ----
+  cellAt(x,y){
+    if (x<0||y<0||x>=this.cols||y>=this.rows) return STONE;
+    return this.type[y*this.cols+x];
+  }
+  deadly(t){ return t===FIRE||t===LAVA||t===ACID; }
+  // what a creature can pass through
+  loose(t){ return t===EMPTY||t===STEAM||t===CLOUD||t===GAS||t===SMOKE||t===WOOD||t===LEAF||t===GRASS||t===SEED; }
+
+  // a dab of Life reads the ground under the cursor and hatches whatever belongs there
+  seedLife(x,y){
+    if ((this.critters||[]).length >= 120) return;
+    if (this.lifeCool && this.frame - this.lifeCool < 5) return;
+    let kind = null, sy = y;
+    if (this.cellAt(x,y)===WATER) kind = 'fish';
+    else {
+      for (let d=0; d<10 && sy<this.rows-1; d++, sy++){
+        const t = this.cellAt(x, sy+1);
+        if (t===WATER){ kind='fish'; sy=sy+1; break; }
+        if (t===GRASS||t===LEAF||t===SOIL){ kind='hare'; break; }
+        if (t===SAND){ kind='crab'; break; }
+        if (!this.loose(t)) break;
+      }
+    }
+    if (!kind) return;
+    // one in five is a predator
+    if (kind==='fish' && Math.random()<0.2) kind = 'pike';
+    if (kind==='hare' && Math.random()<0.2) kind = 'fox';
+    this.lifeCool = this.frame;
+    this.critters.push(this.makeCritter(kind, x, sy, 1));
+  }
+  makeCritter(kind,x,y,size){
+    return { kind, x, y, vy:0, face: Math.random()<0.5?1:-1, t:(Math.random()*100)|0,
+      hop:0, gasp:0, size, food: size<1 ? 60 : 70, breed: 300+Math.random()*300 };
+  }
+
+  // eat one matching cell next to the creature
+  graze(c, list, into, p, gain){
+    if (Math.random()>p) return false;
+    const {cols,rows,type,color,aux} = this;
+    const cx = Math.round(c.x), cy = Math.round(c.y);
+    for (let dy=-2; dy<=1; dy++) for (let dx=-2; dx<=2; dx++){
+      const x=cx+dx, y=cy+dy;
+      if (x<0||y<0||x>=cols||y>=rows) continue;
+      const i = y*cols+x;
+      if (!list.includes(type[i])) continue;
+      type[i] = into; this.still[i] = 0;
+      if (into===SOIL){ aux[i]=2; color[i]=this.soilColor(i,2); }
+      else if (into===WATER){ aux[i]=0; color[i]=pack(48+Math.random()*10,110+Math.random()*16,190); }
+      else { aux[i]=0; color[i]=this.BG; }
+      c.food += gain;
+      return true;
+    }
+    return false;
+  }
+  // a land animal that starves leaves a clod of rich soil behind
+  remains(c){
+    if (c.kind==='fish'||c.kind==='pike') return;
+    const {cols,rows,type,color,aux} = this;
+    const cx = Math.round(c.x), cy = Math.round(c.y);
+    if (cx<0||cy<0||cx>=cols||cy>=rows) return;
+    const i = cy*cols+cx, b = i+cols;
+    if (type[i]===EMPTY){ type[i]=SOIL; aux[i]=4; color[i]=this.soilColor(i,4); this.still[i]=0; }
+    else if (cy<rows-1 && type[b]===SOIL){ aux[b]=Math.min(MAXW, aux[b]+3); color[b]=this.soilColor(b,aux[b]); }
+  }
+
+  critterStep(){
+    const cs = this.critters; if (!cs || !cs.length) return;
+    const HUNGER = {fish:0.02, pike:0.03, crab:0.015, hare:0.035, fox:0.03};
+    const dead = new Set(), born = [];
+    const nearest = (c, kind, r) => {
+      let best = null, bd = r*r;
+      for (const o of cs){
+        if (o===c || o.kind!==kind || dead.has(o)) continue;
+        const dx=o.x-c.x, dy=o.y-c.y, d=dx*dx+dy*dy;
+        if (d<bd){ bd=d; best=o; }
+      }
+      return best;
+    };
+    for (const c of cs){
+      if (dead.has(c)) continue;
+      c.t++;
+      const cx = Math.round(c.x), cy = Math.round(c.y);
+      const here = this.cellAt(cx, cy);
+      if (this.deadly(here) || this.deadly(this.cellAt(cx, cy-1))){ dead.add(c); continue; }
+      c.food -= HUNGER[c.kind];
+      if (c.size<1) c.size = Math.min(1, c.size+0.0015);
+      if (c.food<=0){ dead.add(c); this.remains(c); continue; }
+      c.food = Math.min(100, c.food);
+      // well-fed adults near a partner have young
+      if (--c.breed<=0){
+        c.breed = 120;
+        if (c.food>70 && c.size>=1 && cs.length+born.length<120){
+          const mate = nearest(c, c.kind, 12);
+          if (mate && mate.size>=1){
+            born.push(this.makeCritter(c.kind, c.x, c.y, 0.55));
+            c.food -= 35; c.breed = 500+Math.random()*400; mate.breed = Math.max(mate.breed, 300);
+          }
+        }
+      }
+      if (c.kind==='fish'||c.kind==='pike') this.swim(c, here, nearest, dead);
+      else this.walk(c, here, nearest, dead);
+      c.x = Math.max(0, Math.min(this.cols-1, c.x));
+      if (c.y > this.rows-1) dead.add(c);
+    }
+    this.critters = cs.filter(c => !dead.has(c)).concat(born);
+  }
+
+  swim(c, here, nearest, dead){
+    if (here!==WATER){
+      c.gasp++;
+      if (c.gasp>90){ dead.add(c); return; }
+      const cx = Math.round(c.x), cy = Math.round(c.y);
+      if (this.loose(this.cellAt(cx, cy+1))) c.y += 0.5;
+      else if (Math.random()<0.25){ c.x += c.face*0.3; c.face = Math.random()<0.5?1:-1; }
+      return;
+    }
+    c.gasp = 0;
+    let speed = 0.35, ty = null;
+    {
+      // pike and small fish live peacefully side by side and share the same food
+      if (c.food<95) this.graze(c, [SEED,LEAF,ASH,MOSS], WATER, 0.1, 25);
+      // a soil or grass bed below feeds them slowly
+      const cx = Math.round(c.x), cy = Math.round(c.y);
+      for (let d=1; d<=3; d++){
+        const t = this.cellAt(cx, cy+d);
+        if (t===SOIL||t===GRASS){ c.food += 0.03; break; }
+        if (t!==WATER) break;
+      }
+    }
+    if (ty==null && Math.random()<0.02) c.face = -c.face;
+    const nx = c.x + c.face*speed;
+    if (this.cellAt(Math.round(nx), Math.round(c.y))===WATER) c.x = nx; else c.face = -c.face;
+    const ny = ty!=null ? c.y + Math.sign(ty-c.y)*Math.min(0.3, Math.abs(ty-c.y)) : c.y + Math.sin(c.t*0.08)*0.22;
+    if (this.cellAt(Math.round(c.x), Math.round(ny))===WATER) c.y = ny;
+  }
+
+  // step forward, climbing up to three cells; turn round only at a real wall
+  step1(c, sp){
+    const cy = Math.round(c.y), nx = Math.round(c.x + c.face);
+    for (let up=0; up<=3; up++){
+      if (this.loose(this.cellAt(nx, cy-up)) && this.loose(this.cellAt(Math.round(c.x), cy-up))){
+        c.x += c.face*sp; c.y -= up; return true;
+      }
+    }
+    c.face = -c.face;
+    return false;
+  }
+
+  walk(c, here, nearest, dead){
+    const cx = Math.round(c.x), cy = Math.round(c.y);
+    const below = this.cellAt(cx, cy+1);
+    if (below===WATER || here===WATER){ c.gasp++; if (c.gasp>140){ dead.add(c); return; } }
+    else c.gasp = 0;
+    if (this.loose(below)){ c.vy = Math.min(0.9, c.vy+0.12); c.y += c.vy; return; }
+    c.vy = 0;
+    if (!this.loose(here)){
+      if (this.loose(this.cellAt(cx, cy-1))) c.y -= 1;
+      else { c.buried = (c.buried||0)+1; if (c.buried>60){ dead.add(c); return; } }
+    } else c.buried = 0;
+
+    let chase = null, flee = null;
+    if (c.kind==='fox' && c.food<85) chase = nearest(c, 'hare', 26);
+    if (c.kind==='hare') flee = nearest(c, 'fox', 10);
+    if (c.kind==='crab' && c.food<90){
+      chase = this.critters.find(o => o.kind==='fish' && o.gasp>0 && !dead.has(o) && Math.abs(o.x-c.x)<14 && Math.abs(o.y-c.y)<6) || null;
+    }
+    if (chase){
+      c.face = chase.x>c.x ? 1 : -1;
+      if (Math.abs(chase.x-c.x)<2.2 && Math.abs(chase.y-c.y)<3){
+        dead.add(chase); c.food += c.kind==='fox' ? 45 : 30; chase = null;
+      }
+    }
+    if (flee) c.face = flee.x>c.x ? -1 : 1;
+
+    if (c.kind==='hare' && c.food<92) this.graze(c, [GRASS,LEAF,SEED,MOSS], SOIL, 0.06, 22);
+    if (c.kind==='crab' && c.food<92) this.graze(c, [ASH,SEED,LEAF], EMPTY, 0.05, 20);
+
+    if (c.kind==='crab'){
+      if (!chase && Math.random()<0.03) c.face = -c.face;
+      if (c.t % 2) return;
+      this.step1(c, 0.5);
+      return;
+    }
+    const eager = chase || flee;
+    if (c.hop>0){
+      c.hop--;
+      const nx = Math.round(c.x + c.face);
+      if (this.loose(this.cellAt(nx, cy)) || this.loose(this.cellAt(nx, cy-1))){
+        c.x += c.face*(eager ? 0.8 : 0.6); c.y -= (c.hop>2 ? 0.55 : 0);
+      } else if (!this.step1(c, 0.6)) c.hop = 0;
+    } else if (Math.random() < (eager ? 0.35 : 0.05)){
+      c.hop = c.kind==='fox' ? 5 : 6;
+      if (!eager && Math.random()<0.3) c.face = -c.face;
+    } else if (c.kind==='fox' && chase) this.step1(c, 0.4);
+  }
+
+  drawCritters(){
+    const ctx = this.ctx;
+    for (const c of (this.critters||[])){
+      const f = c.face || 1, s = c.size || 1, aquatic = c.kind==='fish'||c.kind==='pike';
+      const X = 0, Y = aquatic ? 0 : -0.5;
+      ctx.save();
+      ctx.translate(c.x + 0.5, aquatic ? c.y + 0.5 : c.y + 1);
+      ctx.scale(s, s);
+      ctx.globalAlpha = c.food<20 ? 0.6 : 1;
+      if (c.kind==='fish'){
+        ctx.fillStyle = '#e2934a';
+        ctx.fillRect(X-1.4, Y-0.8, 2.8, 1.6);
+        ctx.fillRect(X-0.9, Y-1.2, 1.6, 0.5);
+        ctx.fillStyle = '#c2702c';
+        ctx.beginPath(); ctx.moveTo(X - f*1.4, Y); ctx.lineTo(X - f*2.4, Y-1); ctx.lineTo(X - f*2.4, Y+1); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = '#1b1d28';
+        ctx.fillRect(X + (f>0?0.7:-1.1), Y-0.5, 0.45, 0.45);
+      } else if (c.kind==='pike'){
+        ctx.fillStyle = '#6f8a5a';
+        ctx.fillRect(X-2.4, Y-0.8, 4.8, 1.6);
+        ctx.fillRect(X + (f>0?2.4:-3.2), Y-0.4, 0.8, 0.7);
+        ctx.fillStyle = '#b9c49a'; ctx.fillRect(X-2.2, Y+0.25, 4.4, 0.5);
+        ctx.fillStyle = '#4d6640';
+        ctx.fillRect(X-1.2, Y-0.6, 0.5, 0.4); ctx.fillRect(X+0.2, Y-0.5, 0.5, 0.4); ctx.fillRect(X-0.5, Y-1.1, 1.4, 0.4);
+        ctx.beginPath(); ctx.moveTo(X - f*2.4, Y); ctx.lineTo(X - f*3.6, Y-1.1); ctx.lineTo(X - f*3.6, Y+1.1); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = '#e9d27a'; ctx.fillRect(X + (f>0?1.7:-2.15), Y-0.5, 0.45, 0.45);
+      } else if (c.kind==='crab'){
+        ctx.fillStyle = '#c8402f';
+        ctx.fillRect(X-1.5, Y-1.4, 3, 1.6);
+        ctx.fillStyle = '#9c2c20';
+        ctx.fillRect(X-2.3, Y-1.9, 0.9, 0.8); ctx.fillRect(X+1.4, Y-1.9, 0.9, 0.8);
+        ctx.fillRect(X-1.7, Y+0.2, 0.5, 0.7); ctx.fillRect(X-0.3, Y+0.2, 0.5, 0.7); ctx.fillRect(X+1.2, Y+0.2, 0.5, 0.7);
+        ctx.fillStyle = '#f2e6d8';
+        ctx.fillRect(X-0.9, Y-1.1, 0.4, 0.4); ctx.fillRect(X+0.5, Y-1.1, 0.4, 0.4);
+      } else if (c.kind==='fox'){
+        const hl = f>0 ? 1.4 : -2.8;
+        ctx.fillStyle = '#3b2a22';
+        ctx.fillRect(X-1.6, Y-0.3, 0.5, 0.8); ctx.fillRect(X+1.1, Y-0.3, 0.5, 0.8);
+        ctx.fillStyle = '#d9772b';
+        ctx.fillRect(X-1.8, Y-2.1, 3.6, 1.8);
+        ctx.fillRect(X+hl, Y-3, 1.4, 1.4);
+        ctx.fillRect(X+(f>0?2.8:-3.4), Y-2.4, 0.6, 0.6);
+        ctx.fillRect(X+hl+0.1, Y-3.7, 0.45, 0.8); ctx.fillRect(X+hl+0.85, Y-3.7, 0.45, 0.8);
+        ctx.fillRect(X+(f>0?-3.4:1.8), Y-2, 1.6, 0.8);
+        ctx.fillStyle = '#efe6d6';
+        ctx.fillRect(X+(f>0?-3.9:3.4), Y-2, 0.5, 0.8);
+        ctx.fillRect(X-1.2, Y-0.6, 2.4, 0.3);
+        ctx.fillStyle = '#1b1d28';
+        ctx.fillRect(X+hl+(f>0?0.8:0.2), Y-2.7, 0.35, 0.35);
+      } else {
+        ctx.fillStyle = '#9a8d6e';
+        ctx.fillRect(X-1.6, Y-2, 3.2, 2);
+        ctx.fillRect(X + (f>0?0.9:-2.1), Y-2.9, 1.2, 1.1);
+        ctx.fillRect(X + (f>0?1.1:-1.6), Y-4, 0.5, 1.2);
+        ctx.fillRect(X + (f>0?1.7:-2.2), Y-4, 0.5, 1.2);
+        ctx.fillStyle = '#c9c0ab';
+        ctx.fillRect(X - f*1.9, Y-1.9, 0.8, 0.8);
+        ctx.fillStyle = '#1b1d28';
+        ctx.fillRect(X + (f>0?1.6:-1.7), Y-2.6, 0.4, 0.4);
+      }
+      ctx.restore();
+    }
+  }
+
+  // ---- physics ----
+  swap(a,b){
+    const {type,color,aux} = this;
+    let t=type[a]; type[a]=type[b]; type[b]=t;
+    let c=color[a]; color[a]=color[b]; color[b]=c;
+    let m=aux[a]; aux[a]=aux[b]; aux[b]=m;
+    const s=this.still[a]; this.still[a]=this.still[b]; this.still[b]=s;
+    if (this.fuel){ const f=this.fuel[a]; this.fuel[a]=this.fuel[b]; this.fuel[b]=f; }
+  }
+  flammable(t){ return t===WOOD||t===LEAF||t===GRASS||t===SEED||t===OIL||t===MOSS; }
+  porous(t){ return t===WOOD||t===LEAF||t===GRASS; }
+  soilColor(idx,m){
+    const t=m/MAXW, j=jitter(idx)*18-9;
+    return pack(118-58*t+j, 84-44*t+j*0.8, 54-32*t+j*0.5);
+  }
+  wet(idx,amount){
+    const m = Math.min(MAXW, this.aux[idx]+amount);
+    if (m===this.aux[idx]) return false;
+    this.aux[idx]=m; this.color[idx]=this.soilColor(idx,m);
+    return true;
+  }
+  dry(idx,amount){
+    const m = Math.max(0, this.aux[idx]-amount);
+    this.aux[idx]=m; this.color[idx]=this.soilColor(idx,m);
+  }
+
+  step(){
+    const {cols,rows,type} = this;
+    this.proc.fill(0);
+    for (let y=rows-1;y>=0;y--){
+      const flip = Math.random()<0.5;
+      for (let i=0;i<cols;i++){
+        const x = flip?i:cols-1-i;
+        const idx = y*cols+x, t = type[idx];
+        if (this.proc[idx]) continue;
+        if (t===SAND) this.fall(x,y,idx,true);
+        else if (t===ASH) this.ash(x,y,idx);
+        else if (t===SOIL) this.soil(x,y,idx);
+        else if (t===SEED) this.seed(x,y,idx);
+        else if (t===WATER) this.water(x,y,idx);
+        else if (t===GRASS) this.grass(x,y,idx);
+        else if (t===FIRE) this.fire(x,y,idx);
+        else if (t===STEAM) this.steam(x,y,idx);
+        else if (t===CLOUD) this.cloud(x,y,idx);
+        else if (t===OIL) this.oil(x,y,idx);
+        else if (t===ACID) this.acid(x,y,idx);
+        else if (t===LAVA) this.lava(x,y,idx);
+        else if (t===ICE) this.ice(x,y,idx);
+        else if (t===POWDER) this.powder(x,y,idx);
+        else if (t===SNOW) this.snow(x,y,idx);
+        else if (t===SALT) this.salt(x,y,idx);
+        else if (t===GAS) this.gas(x,y,idx);
+        else if (t===METAL) this.metal(x,y,idx);
+        else if (t===SPARK) this.spark(x,y,idx);
+        else if (t===SMOKE) this.smoke(x,y,idx);
+        else if (t===SLIME) this.slime(x,y,idx);
+        else if (t===CRYSTAL) this.crystal(x,y,idx);
+        else if (t===MOSS) this.moss(x,y,idx);
+        else if (t===PORTAL) this.portal(x,y,idx);
+        else if (t===ANTI) this.anti(x,y,idx);
+      }
+    }
+    if (Math.random()<0.004) this.wind = [-1,0,1,1,-1][(Math.random()*5)|0];
+    this.grow();
+  }
+
+  steamColor(){ const g = 150+Math.random()*26; return pack(g, g+6, g+22); }
+  cloudColor(dense){
+    const g = dense ? 74+Math.random()*16 : 118+Math.random()*18;
+    return pack(g, g+4, g+22);
+  }
+
+  steam(x,y,idx){
+    const {cols,type,color,aux} = this;
+    if (aux[idx]<=1){ type[idx]=EMPTY; color[idx]=this.BG; return; }
+    aux[idx]--;
+    if (Math.random()<0.25){
+      for (const n of this.nb4(idx)){
+        if (n<0||n>=cols*this.rows) continue;
+        const t = type[n];
+        if (t===ICE||t===SNOW||(t===METAL&&aux[n]===0)){
+          type[idx]=WATER; aux[idx]=0; this.still[idx]=0; color[idx]=pack(48+Math.random()*10,110+Math.random()*16,190); return;
+        }
+      }
+    }
+    const touching = (y>0 && type[idx-cols]===CLOUD)
+      || (x>0 && type[idx-1]===CLOUD) || (x<cols-1 && type[idx+1]===CLOUD);
+    if (this.noClouds && (y<=this.cloudLine || touching)){ type[idx]=EMPTY; color[idx]=this.BG; aux[idx]=0; return; }
+    if (y<=this.cloudLine || touching){
+      type[idx]=CLOUD; aux[idx]=90+((Math.random()*60)|0); color[idx]=this.cloudColor(false);
+      return;
+    }
+    if (y>0){
+      // steam rises through open air and straight through flames
+      const up = type[idx-cols];
+      if (up===EMPTY || up===FIRE){ this.swap(idx, idx-cols); this.proc[idx-cols]=1; return; }
+      const d = Math.random()<0.5?-1:1;
+      if (x+d>=0 && x+d<cols){
+        const ud = type[idx-cols+d];
+        if (ud===EMPTY || ud===FIRE){ this.swap(idx, idx-cols+d); this.proc[idx-cols+d]=1; return; }
+        if (type[idx+d]===EMPTY){ this.swap(idx, idx+d); this.proc[idx+d]=1; }
+      }
+    }
+  }
+
+  cloud(x,y,idx){
+    const {cols,rows,type,color,aux} = this;
+    if (aux[idx]<=0){ type[idx]=EMPTY; color[idx]=this.BG; return; }
+    if (this.wind && Math.random()<0.06){
+      const nx = x+this.wind;
+      if (nx>=0 && nx<cols && type[idx+this.wind]===EMPTY){
+        this.swap(idx, idx+this.wind); this.proc[idx+this.wind]=1; return;
+      }
+    }
+    if (y>0 && type[idx-cols]===EMPTY && Math.random()<0.05){
+      this.swap(idx, idx-cols); this.proc[idx-cols]=1; return;
+    }
+    if (Math.random()<0.09){
+      let c = 0;
+      for (let dy=-2;dy<=2;dy++){
+        const yy = y+dy; if (yy<0||yy>=rows) continue;
+        for (let dx=-6;dx<=6;dx++){
+          const xx = x+dx; if (xx<0||xx>=cols) continue;
+          if (type[yy*cols+xx]===CLOUD) c++;
+        }
+      }
+      const dense = c>=18;
+      color[idx] = this.cloudColor(dense);
+      // a lone wisp with almost nothing around it fades; anything else waits to rain
+      if (c<=3){ type[idx]=EMPTY; color[idx]=this.BG; aux[idx]=0; return; }
+      // each drop costs the cloud exactly one pixel
+      if (dense && Math.random()<0.00005){ this.lightning(x, y+1); return; }
+      if (dense && y<rows-1 && type[idx+cols]===EMPTY){
+        type[idx+cols]=WATER; aux[idx+cols]=0; this.still[idx+cols]=0;
+        color[idx+cols]=pack(48+Math.random()*10, 110+Math.random()*16, 190+Math.random()*20);
+        this.proc[idx+cols]=1;
+        type[idx]=EMPTY; color[idx]=this.BG; aux[idx]=0;
+        return;
+      }
+    }
+  }
+
+  fall(x,y,idx,sink){
+    const {cols,rows,type} = this;
+    if (this.still[idx]) return false;
+    if (y>=rows-1) return false;
+    const b = idx+cols, tb = type[b];
+    if (tb===EMPTY||(sink&&(tb===WATER||tb===GRASS))){ this.swap(idx,b); return true; }
+    let d = Math.random()<0.5?1:-1;
+    for (let k=0;k<2;k++,d=-d){
+      const nx = x+d; if (nx<0||nx>=cols) continue;
+      const n = b+d, tn = type[n];
+      if (tn===EMPTY||(sink&&tn===WATER)){ this.swap(idx,n); return true; }
+    }
+    return false;
+  }
+
+  soil(x,y,idx){
+    const {cols,rows,type,color,aux} = this;
+    if (aux[idx]<MAXW && y>0 && type[idx-cols]===WATER){
+      type[idx-cols]=EMPTY; color[idx-cols]=this.BG; this.wet(idx,2);
+    }
+    if (aux[idx]>1 && Math.random()<0.35){
+      const d = [1,-1,cols][(Math.random()*3)|0];
+      const nx = x+(d===1?1:d===-1?-1:0), n = idx+d;
+      if (nx>=0&&nx<cols&&n>=0&&n<cols*rows&&type[n]===SOIL&&aux[n]<aux[idx]-1){ this.dry(idx,1); this.wet(n,1); }
+    }
+    if (aux[idx]>0 && y>0 && type[idx-cols]===EMPTY && Math.random()<0.007){
+      const u = idx-cols;
+      type[u]=GRASS; color[u]=this.grassColor(1,3); aux[u]=1;
+      this.dry(idx,1);
+    }
+    this.fall(x,y,idx,true);
+  }
+
+  grassColor(h,maxH){
+    const t=h/maxH;
+    return hsl(92+Math.random()*30, 42+Math.random()*16, 22+t*18+Math.random()*5);
+  }
+
+  grass(x,y,idx){
+    const {cols,rows,type,color,aux} = this;
+    const b = idx+cols;
+    if (y>=rows-1 || (type[b]!==SOIL && type[b]!==GRASS)){ type[idx]=EMPTY; color[idx]=this.BG; aux[idx]=0; return; }
+    const h = aux[idx]||1, maxH = 2+((jitter(idx)*3)|0);
+    if (h>=maxH||y===0||Math.random()>0.04) return;
+    const u = idx-cols;
+    if (type[u]!==EMPTY) return;
+    let src = -1;
+    for (let k=1;k<=5;k++){
+      const ny = y+k; if (ny>=rows) break;
+      const n = ny*cols+x, t = type[n];
+      if (t===GRASS) continue;
+      if (t===SOIL && aux[n]>0) src = n;
+      break;
+    }
+    if (src<0) return;
+    this.dry(src,1);
+    type[u]=GRASS; color[u]=this.grassColor(h+1,maxH); aux[u]=h+1;
+  }
+
+  fireColor(life,maxLife){
+    const t = Math.max(0, life/maxLife);
+    return hsl(14+t*34+Math.random()*8, 92, Math.min(78, 42+t*26+Math.random()*6));
+  }
+  ashColor(idx){ const g = 40+jitter(idx)*26; return pack(g, g*0.94, g*0.9); }
+  ignite(idx,mat){
+    this.type[idx]=FIRE;
+    this.fuel[idx]=1;
+    this.aux[idx]=Math.min(255, FIRE_LIFE[mat]||30);
+    this.color[idx]=this.fireColor(1,1);
+  }
+
+  fire(x,y,idx){
+    const {cols,rows,type,color,aux} = this;
+    const neigh = [idx-1, idx+1, idx-cols, idx+cols];
+    for (const nb of neigh){
+      if (nb<0||nb>=cols*rows) continue;
+      if (type[nb]===POWDER){ this.explode(nb); return; }
+      const tf = type[nb];
+      if (tf===ICE && Math.random()<0.2){ type[nb]=WATER; color[nb]=pack(48,112,190); aux[nb]=0; this.still[nb]=0; }
+      else if (tf===SLIME && Math.random()<0.08){ type[nb]=SMOKE; aux[nb]=80; color[nb]=this.smokeColor(80); this.proc[nb]=1; }
+      else if (tf===ANTI && Math.random()<0.2){ type[nb]=SAND; color[nb]=this.plainSand(); this.still[nb]=0; }
+      if (type[nb]===WATER){
+        // fire meets water: both flash to steam, which rises and gathers into cloud
+        type[nb]=STEAM; aux[nb]=210; color[nb]=this.steamColor(); this.proc[nb]=1;
+        type[idx]=STEAM; aux[idx]=210; color[idx]=this.steamColor(); this.fuel[idx]=0;
+        return;
+      }
+    }
+    const life = aux[idx]-1;
+    if (life<=0){
+      // only flames that consumed plant matter leave ash behind
+      type[idx] = (this.fuel[idx] && Math.random()<0.55) ? ASH : EMPTY;
+      color[idx] = type[idx]===ASH ? this.ashColor(idx) : this.BG;
+      aux[idx]=0; this.fuel[idx]=0; return;
+    }
+    aux[idx]=life;
+    color[idx]=this.fireColor(life,42);
+    if (this.fuel[idx] && y>0 && type[idx-cols]===EMPTY && Math.random()<0.05){
+      const u = idx-cols; type[u]=SMOKE; aux[u]=70+((Math.random()*60)|0); color[u]=this.smokeColor(aux[u]); this.proc[u]=1;
+    }
+    for (let dy=-1;dy<=1;dy++) for (let dx=-1;dx<=1;dx++){
+      if (!dx&&!dy) continue;
+      const nx=x+dx, ny=y+dy;
+      if (nx<0||nx>=cols||ny<0||ny>=rows) continue;
+      const n = ny*cols+nx, tn = type[n];
+      if (this.flammable(tn) && Math.random()<(IGNITE_P[tn]||0.1)) this.ignite(n,tn);
+    }
+  }
+
+  water(x,y,idx){
+    const {cols,rows,type,color,aux} = this;
+    if (y<rows-1){
+      const b = idx+cols;
+      if (type[b]===SOIL&&aux[b]<MAXW){ this.wet(b,2); type[idx]=EMPTY; color[idx]=this.BG; return; }
+      if (type[b]===EMPTY||type[b]===STEAM||type[b]===CLOUD){ this.swap(idx,b); return; }
+      // water is heavier than oil, so it sinks past a slick
+      if (type[b]===OIL && Math.random()<0.6){ this.swap(idx,b); return; }
+      if (this.porous(type[b])){
+        let ny=y+1, hit=-1;
+        while (ny<rows){
+          const p = ny*cols+x;
+          if (!this.porous(type[p])){ hit=p; break; }
+          ny++;
+        }
+        if (hit>=0){
+          if (type[hit]===EMPTY){ this.swap(idx,hit); return; }
+          if (type[hit]===SOIL&&aux[hit]<MAXW){ this.wet(hit,2); type[idx]=EMPTY; color[idx]=this.BG; return; }
+        }
+      }
+      let d = Math.random()<0.5?1:-1;
+      for (let k=0;k<2;k++,d=-d){
+        const nx = x+d; if (nx<0||nx>=cols) continue;
+        const n = b+d;
+        if (type[n]===SOIL&&aux[n]<MAXW){ this.wet(n,2); type[idx]=EMPTY; color[idx]=this.BG; return; }
+        if (type[n]===EMPTY){ this.swap(idx,n); return; }
+      }
+    }
+    let dd = Math.random()<0.5?1:-1;
+    for (let j=0;j<2;j++,dd=-dd){
+      let cur=idx, cx=x;
+      for (let s=0;s<5;s++){
+        const tx = cx+dd; if (tx<0||tx>=cols) break;
+        const t2 = cur+dd;
+        if (type[t2]!==EMPTY) break;
+        this.swap(cur,t2); cur=t2; cx=tx;
+        if (cur+cols<cols*rows && type[cur+cols]===EMPTY) return;
+      }
+      if (cur!==idx) return;
+    }
+  }
+
+  // ---- oil, acid, lava, ice ----
+  oilColor(){ const j=Math.random()*14-7; return pack(46+j, 38+j, 34+j); }
+  acidColor(){ return hsl(88+Math.random()*16, 72, 48+Math.random()*10); }
+  lavaColor(){ return hsl(10+Math.random()*24, 94, 46+Math.random()*16); }
+  iceColor(){ return hsl(196+Math.random()*12, 42, 72+Math.random()*10); }
+  glassColor(){ return hsl(186+Math.random()*14, 20, 62+Math.random()*10); }
+  powderColor(){ const j=Math.random()*16-8; return pack(62+j, 58+j, 70+j); }
+  snowColor(){ return hsl(208+Math.random()*10, 24, 88+Math.random()*8); }
+  saltColor(){ return hsl(42+Math.random()*10, 10, 84+Math.random()*10); }
+  gasColor(){ return hsl(74+Math.random()*16, 26, 38+Math.random()*10); }
+
+  // ---- metal, electricity, smoke, crystal, moss, portals, anti-sand ----
+  metalColor(idx,h){
+    const j = jitter(idx)*14-7, t = Math.min(1, h/90);
+    return pack(126+j + t*110, 132+j - t*40, 146+j - t*100);
+  }
+  smokeColor(life){ const t = Math.min(1, life/130); return pack(22+t*64, 24+t*62, 38+t*56); }
+  crystalColor(){ return hsl(280+Math.random()*40, 48, 62+Math.random()*16); }
+  mossColor(){ return hsl(92+Math.random()*28, 42, 26+Math.random()*12); }
+  portalColor(side){ return side===2 ? hsl(24+Math.random()*10, 92, 52+Math.random()*14) : hsl(208+Math.random()*12, 84, 54+Math.random()*14); }
+  antiColor(){ return hsl(186+Math.random()*20, 46, 64+Math.random()*12); }
+  nb4(idx){ const c=this.cols, x=idx%c; return [x>0?idx-1:-1, x<c-1?idx+1:-1, idx-c, idx+c]; }
+
+  // metal: can't be dug or blasted, soaks up heat and glows, carries current
+  metal(x,y,idx){
+    if (Math.random()>0.2) return;
+    const {cols,rows,type,color,aux} = this, N = cols*rows;
+    let heat = aux[idx], hot = false;
+    for (const n of this.nb4(idx)){
+      if (n<0||n>=N) continue;
+      const t = type[n];
+      if (t===LAVA||t===FIRE) hot = true;
+      else if (t===METAL && aux[n] < heat-6){ aux[n]+=3; color[n]=this.metalColor(n,aux[n]); heat-=2; }
+    }
+    heat = hot ? Math.min(90, heat+10) : Math.max(0, heat-1);
+    if (heat>45){
+      for (const n of this.nb4(idx)){
+        if (n<0||n>=N) continue;
+        const t = type[n];
+        if (this.flammable(t)) this.ignite(n,t);
+        else if (t===WATER){ type[n]=STEAM; aux[n]=210; color[n]=this.steamColor(); heat-=6; }
+        else if (t===ICE||t===SNOW){ type[n]=WATER; aux[n]=0; color[n]=pack(48,112,190); }
+        else if (t===POWDER){ aux[idx]=heat; this.explode(n); return; }
+      }
+    }
+    if (heat!==aux[idx]){ aux[idx]=Math.max(0,heat); color[idx]=this.metalColor(idx,aux[idx]); }
+  }
+
+  // a spark lives a few frames, crackles about and sets off whatever it touches
+  spark(x,y,idx){
+    const {cols,rows,type,color,aux} = this, N = cols*rows;
+    if (aux[idx]<=1){ type[idx]=EMPTY; color[idx]=this.BG; aux[idx]=0; return; }
+    aux[idx]--;
+    color[idx] = hsl(52+Math.random()*20, 100, 72+Math.random()*20);
+    for (const n of this.nb4(idx)){
+      if (n<0||n>=N) continue;
+      const t = type[n];
+      if (t===METAL||t===WATER||t===ACID||t===CRYSTAL){ this.zap(n); }
+      else if (t===SAND && Math.random()<0.3){ type[n]=ANTI; color[n]=this.antiColor(); this.still[n]=0; }
+      else if (t===POWDER){ this.explode(n); return; }
+      else if (t===GAS) this.placeCell(n, FIRE);
+      else if (this.flammable(t) && Math.random()<0.4) this.ignite(n,t);
+    }
+    if (Math.random()<0.5){
+      const n = this.nb4(idx)[(Math.random()*4)|0];
+      if (n>=0 && n<N && type[n]===EMPTY){ this.swap(idx,n); this.proc[n]=1; }
+    }
+  }
+
+  // current floods every connected metal, water and acid cell at once
+  zap(start){
+    if (this.frame - (this.lastZap ?? -99) < 6) return;
+    this.lastZap = this.frame;
+    const {cols,rows,type} = this, N = cols*rows;
+    if (!this.zmark || this.zmark.length!==N) this.zmark = new Uint8Array(N);
+    const mark = this.zmark, list = [start], boom = [];
+    mark[start] = 1;
+    for (let q=0; q<list.length && list.length<6000; q++){
+      for (const n of this.nb4(list[q])){
+        if (n<0||n>=N||mark[n]) continue;
+        const t = type[n];
+        if (t===METAL||t===WATER||t===ACID||t===CRYSTAL){ mark[n]=1; list.push(n); }
+        else if (t===POWDER && boom.length<3) boom.push(n);
+        else if (t===GAS) this.placeCell(n, FIRE);
+        else if (this.flammable(t) && Math.random()<0.3) this.ignite(n,t);
+      }
+    }
+    this.critters = (this.critters||[]).filter(c => {
+      const cx=Math.round(c.x), cy=Math.round(c.y);
+      return !(cy>=0 && cy<rows && mark[cy*cols+cx]);
+    });
+    for (const i of list) mark[i] = 0;
+    this.zapCells = list; this.zapUntil = this.frame + 8;
+    for (const b of boom) if (type[b]===POWDER) this.explode(b);
+  }
+
+  // a jagged bolt from a storm cloud down to whatever it hits first
+  lightning(x,y){
+    const {cols,rows,type,color,aux} = this;
+    let cx = x;
+    for (let yy=y; yy<rows; yy++){
+      cx = Math.max(0, Math.min(cols-1, cx + ((Math.random()*3)|0) - 1));
+      const i = yy*cols+cx, t = type[i];
+      if (t===EMPTY||t===CLOUD||t===STEAM||t===SMOKE){
+        if (t===EMPTY){ type[i]=SPARK; aux[i]=3+((Math.random()*4)|0); color[i]=hsl(54,100,86); this.proc[i]=1; }
+        continue;
+      }
+      if (t===GAS){ this.placeCell(i, FIRE); continue; }
+      if (t===METAL||t===WATER||t===ACID){ this.lastZap = -99; this.zap(i); }
+      else if (t===POWDER) this.explode(i);
+      else if (this.flammable(t)) this.ignite(i,t);
+      else if (t===SAND){ type[i]=GLASS; color[i]=this.glassColor(); }
+      break;
+    }
+    this.boltFlash = 4;
+  }
+
+  smoke(x,y,idx){
+    const {cols,type,color,aux} = this;
+    if (aux[idx]<=1){ type[idx]=EMPTY; color[idx]=this.BG; aux[idx]=0; return; }
+    aux[idx]--;
+    if ((aux[idx]&7)===0) color[idx]=this.smokeColor(aux[idx]);
+    if (Math.random()<0.2){
+      for (const n of this.nb4(idx)) if (n>=0 && n<cols*this.rows && type[n]===WATER){ type[idx]=EMPTY; color[idx]=this.BG; aux[idx]=0; return; }
+    }
+    if (Math.random()<0.3) return;
+    if (this.wind && Math.random()<0.25){
+      const nx = x+this.wind;
+      if (nx>=0 && nx<cols && type[idx+this.wind]===EMPTY){ this.swap(idx, idx+this.wind); this.proc[idx+this.wind]=1; return; }
+    }
+    if (y>0){
+      if (type[idx-cols]===EMPTY){ this.swap(idx, idx-cols); this.proc[idx-cols]=1; return; }
+      const d = Math.random()<0.5?-1:1;
+      if (x+d>=0 && x+d<cols && type[idx-cols+d]===EMPTY){ this.swap(idx, idx-cols+d); this.proc[idx-cols+d]=1; return; }
+    }
+    if (y===0){ type[idx]=EMPTY; color[idx]=this.BG; aux[idx]=0; }
+  }
+
+  // crystal grows slowly into still water, much faster where salt is dissolved nearby
+  crystal(x,y,idx){
+    const {cols,rows,type,color,aux} = this, N = cols*rows;
+    let p = 0.003;
+    for (const n of this.nb4(idx)) if (n>=0 && n<N && type[n]===SALT) p = 0.02;
+    if (Math.random()>p) return;
+    const dx = ((Math.random()*3)|0)-1, dy = ((Math.random()*3)|0)-1;
+    const nx = x+dx, ny = y+dy;
+    if (nx<0||ny<0||nx>=cols||ny>=rows) return;
+    const n = ny*cols+nx;
+    if (type[n]!==WATER) return;
+    let around = 0;
+    for (const k of this.nb4(n)) if (k>=0 && k<N && type[k]===CRYSTAL) around++;
+    if (around>2) return;
+    type[n]=CRYSTAL; color[n]=this.crystalColor(); aux[n]=0; this.still[n]=0;
+  }
+
+  // moss creeps across surfaces while it stays damp, and dies back to ash when dry
+  moss(x,y,idx){
+    const {cols,rows,type,color,aux} = this, N = cols*rows;
+    // dropped moss falls like a powder until it lands, then takes root
+    if (aux[idx] & 64){
+      const b = idx+cols;
+      if (y<rows-1 && (type[b]===EMPTY || type[b]===WATER || type[b]===STEAM || type[b]===SMOKE)){ this.fall(x,y,idx,true); return; }
+      let d = Math.random()<0.5?1:-1;
+      for (let k=0;k<2;k++,d=-d){
+        const nx = x+d;
+        if (y<rows-1 && nx>=0 && nx<cols && type[b+d]===EMPTY && Math.random()<0.5){ this.fall(x,y,idx,true); return; }
+      }
+      aux[idx] = 12;
+      return;
+    }
+    if (Math.random()>0.04) return;
+    let damp = false;
+    for (const n of this.nb4(idx)){
+      if (n<0||n>=N) continue;
+      const t = type[n];
+      if (t===WATER || (t===SOIL && aux[n]>0) || t===STEAM || t===CLOUD){ damp = true; break; }
+    }
+    aux[idx] = damp ? 12 : Math.max(0, aux[idx]-1);
+    if (damp && Math.random()<0.02){
+      const n = this.nb4(idx)[(Math.random()*4)|0];
+      if (n>=0 && n<N && type[n]===STONE){ type[n]=SOIL; aux[n]=2; color[n]=this.soilColor(n,2); this.still[n]=0; }
+    }
+    if (aux[idx]===0){
+      // dry moss withers from the outside in: only edge cells open to the air can die
+      let edge = false;
+      for (const n of this.nb4(idx)) if (n<0 || n>=N || type[n]===EMPTY){ edge = true; break; }
+      if (edge && Math.random()<0.05){
+        if (Math.random()<0.15){ type[idx]=ASH; color[idx]=this.ashColor(idx); }
+        else { type[idx]=EMPTY; color[idx]=this.BG; aux[idx]=0; this.still[idx]=0; }
+      }
+      return;
+    }
+    const dx = ((Math.random()*3)|0)-1, dy = ((Math.random()*3)|0)-1;
+    const nx = x+dx, ny = y+dy;
+    if (nx<0||ny<0||nx>=cols||ny>=rows) return;
+    const n = ny*cols+nx;
+    if (type[n]!==EMPTY) return;
+    let support = false;
+    for (const k of this.nb4(n)){
+      if (k<0||k>=N) continue;
+      const t = type[k];
+      if (t===STONE||t===SOIL||t===WOOD||t===GLASS||t===METAL||t===CRYSTAL||t===GRASS){ support = true; break; }
+    }
+    if (!support) return;
+    type[n]=MOSS; color[n]=this.mossColor(); aux[n]=aux[idx]-1; this.still[n]=0;
+  }
+
+  // portals come in blue and orange; what drops into one falls out of the other
+  portalExit(side){
+    const list = this.portals && this.portals[side===1?2:1];
+    if (!list || !list.length) return -1;
+    const {type,aux} = this;
+    for (let k=0;k<8;k++){
+      const j = (Math.random()*list.length)|0, p = list[j];
+      if (type[p]!==PORTAL || aux[p]===side){ list[j]=list[list.length-1]; list.pop(); if (!list.length) return -1; continue; }
+      return p;
+    }
+    return -1;
+  }
+  portal(x,y,idx){
+    const {cols,rows,type,color,aux} = this;
+    if (Math.random()<0.3) color[idx] = this.portalColor(aux[idx]);
+    if (y<this.rows-1){
+      const b = idx+cols, tb = type[b];
+      if (tb===GAS||tb===SMOKE||tb===STEAM||tb===ANTI){
+        const p = this.portalExit(aux[idx]);
+        if (p>=cols && type[p-cols]===EMPTY){
+          const o = p-cols;
+          type[o]=tb; color[o]=color[b]; aux[o]=aux[b]; this.still[o]=0; this.proc[o]=1;
+          type[b]=EMPTY; color[b]=this.BG; aux[b]=0; this.still[b]=0;
+        }
+      }
+    }
+    if (y===0) return;
+    const a = idx-cols, t = type[a];
+    const movable = t===SAND||t===WATER||t===SOIL||t===ASH||t===OIL||t===ACID||t===LAVA||t===POWDER||t===SNOW||t===SALT||t===SLIME||t===SEED;
+    if (!movable) return;
+    const p = this.portalExit(aux[idx]);
+    if (p<0) return;
+    const out = p+cols;
+    if (out>=cols*rows || type[out]!==EMPTY) return;
+    type[out]=t; color[out]=color[a]; aux[out]=aux[a]; this.still[out]=0; this.proc[out]=1;
+    type[a]=EMPTY; color[a]=this.BG; aux[a]=0; this.still[a]=0;
+  }
+
+  // anti-sand: a powder that falls upward
+  anti(x,y,idx){
+    const {cols,type} = this;
+    if (y===0) return;
+    const u = idx-cols, tu = type[u];
+    if (tu===EMPTY || ((tu===WATER||tu===OIL||tu===ACID||tu===SLIME) && Math.random()<0.5)){ this.swap(idx,u); this.proc[u]=1; return; }
+    const d = Math.random()<0.5?-1:1;
+    for (const dd of [d,-d]){
+      const nx = x+dd; if (nx<0||nx>=cols) continue;
+      if (type[u+dd]===EMPTY){ this.swap(idx,u+dd); this.proc[u+dd]=1; return; }
+    }
+  }
+
+  plainSand(){ return hsl(38+Math.random()*10, 52, 60+Math.random()*10); }
+
+  // ash soaked in water composts into rich soil
+  ash(x,y,idx){
+    if (Math.random()<0.02){
+      const {type,color,aux} = this;
+      for (const n of this.nb4(idx)){
+        if (n>=0 && n<type.length && type[n]===WATER){ type[idx]=SOIL; aux[idx]=4; color[idx]=this.soilColor(idx,4); this.still[idx]=0; return; }
+      }
+    }
+    this.fall(x,y,idx,true);
+  }
+  // wet gunpowder is ruined — it turns to inert ash
+  powder(x,y,idx){
+    if (Math.random()<0.03){
+      const {type,color} = this;
+      for (const n of this.nb4(idx)){
+        if (n>=0 && n<type.length && type[n]===WATER){ type[idx]=ASH; color[idx]=this.ashColor(idx); return; }
+      }
+    }
+    this.fall(x,y,idx,true);
+  }
+  // slime swells by soaking up water, and oozes slowly
+  slime(x,y,idx){
+    if (Math.random()<0.01){
+      const {type,color,aux} = this;
+      const n = this.nb4(idx)[(Math.random()*4)|0];
+      if (n>=0 && n<type.length && type[n]===WATER){ type[n]=SLIME; color[n]=hsl(96+Math.random()*14, 58, 40+Math.random()*10); aux[n]=0; }
+    }
+    if (Math.random()<0.22) this.liquidFlow(x,y,idx);
+  }
+
+  drawZap(){
+    const ctx = this.ctx, cols = this.cols;
+    if (this.boltFlash>0){
+      ctx.fillStyle = 'rgba(233,233,237,' + (0.05*this.boltFlash) + ')';
+      ctx.fillRect(0,0,cols,this.rows); this.boltFlash--;
+    }
+    if (!this.zapCells || this.frame >= this.zapUntil) return;
+    const a = (this.zapUntil - this.frame)/8;
+    ctx.fillStyle = 'rgba(214,226,255,' + (0.25 + 0.5*a*Math.random()) + ')';
+    const L = this.zapCells, step = L.length>3000 ? 2 : 1;
+    for (let k=0;k<L.length;k+=step){ const i=L[k]; ctx.fillRect(i%cols, (i/cols)|0, 1, 1); }
+  }
+
+  // generic fluid: falls, slides diagonally, then levels out sideways
+  liquidFlow(x,y,idx){
+    const {cols,rows,type} = this;
+    if (y<rows-1){
+      if (type[idx+cols]===EMPTY){ this.swap(idx, idx+cols); return true; }
+      let d = Math.random()<0.5?1:-1;
+      for (let k=0;k<2;k++,d=-d){
+        const nx = x+d; if (nx<0||nx>=cols) continue;
+        if (type[idx+cols+d]===EMPTY){ this.swap(idx, idx+cols+d); return true; }
+      }
+    }
+    let dd = Math.random()<0.5?1:-1;
+    for (let j=0;j<2;j++,dd=-dd){
+      let cur = idx, cx = x;
+      for (let s=0;s<4;s++){
+        const tx = cx+dd; if (tx<0||tx>=cols) break;
+        if (type[cur+dd]!==EMPTY) break;
+        this.swap(cur, cur+dd); cur += dd; cx = tx;
+        if (cur+cols<cols*rows && type[cur+cols]===EMPTY) return true;
+      }
+      if (cur!==idx) return true;
+    }
+    return false;
+  }
+
+  // oil floats on water and catches fire readily
+  oil(x,y,idx){
+    const {cols,type} = this;
+    // rise through the water above it
+    if (y>0 && type[idx-cols]===WATER && Math.random()<0.6){ this.swap(idx, idx-cols); return; }
+    this.liquidFlow(x,y,idx);
+  }
+
+  // acid eats most things, but water dilutes it away
+  acid(x,y,idx){
+    const {cols,rows,type,color,aux} = this;
+    for (const n of [idx-1, idx+1, idx-cols, idx+cols]){
+      if (n<0||n>=cols*rows) continue;
+      const t = type[n];
+      if (t===METAL && Math.random()<0.03){
+        type[n]=EMPTY; color[n]=this.BG; aux[n]=0; this.still[n]=0;
+        type[idx]=GAS; color[idx]=this.gasColor(); aux[idx]=0; return;
+      }
+      if (t===STONE && Math.random()<0.004){
+        type[n]=EMPTY; color[n]=this.BG; aux[n]=0; this.still[n]=0;
+        type[idx]=EMPTY; color[idx]=this.BG; aux[idx]=0; return;
+      }
+      if (t===LAVA && Math.random()<0.3){
+        type[idx]=SMOKE; aux[idx]=80+((Math.random()*40)|0); color[idx]=this.smokeColor(aux[idx]); return;
+      }
+      if ((t===SAND||t===SOIL||t===GRASS||t===WOOD||t===LEAF||t===SEED||t===ASH||t===GLASS||t===POWDER||t===SNOW||t===SALT||t===MOSS||t===CRYSTAL||t===SLIME||t===ANTI) && Math.random()<0.22){
+        type[n]=EMPTY; color[n]=this.BG; aux[n]=0; this.still[n]=0;
+        if (Math.random()<0.45){ type[idx]=EMPTY; color[idx]=this.BG; aux[idx]=0; return; }
+      }
+    }
+    // mixes freely with water: trades places with neighbouring water so the two blend
+    if (Math.random()<0.35){
+      const opts = [idx-1, idx+1, idx-cols, idx+cols];
+      const n = opts[(Math.random()*4)|0];
+      const nx = n%cols;
+      if (n>=0 && n<cols*rows && Math.abs(nx-x)<=1 && type[n]===WATER){ this.swap(idx, n); this.proc[n]=1; return; }
+    }
+    this.liquidFlow(x,y,idx);
+  }
+
+  // lava: cools to stone in water, fuses sand into glass, melts ice, torches plants
+  lava(x,y,idx){
+    const {cols,rows,type,color,aux} = this;
+    color[idx] = this.lavaColor();
+    for (const n of [idx-1, idx+1, idx-cols, idx+cols]){
+      if (n<0||n>=cols*rows) continue;
+      const t = type[n];
+      if (t===WATER){
+        type[n]=STEAM; aux[n]=210; color[n]=this.steamColor(); this.proc[n]=1;
+        type[idx]=STONE; color[idx]=pack(76+Math.random()*20, 79, 86); aux[idx]=0;
+        return;
+      }
+      if (t===ICE||t===SNOW){ type[n]=WATER; color[n]=pack(48,112,190); aux[n]=0; this.still[n]=0; }
+      if (t===POWDER){ this.explode(n); return; }
+      if ((t===CRYSTAL||t===ANTI) && Math.random()<0.12){ type[n]=GLASS; color[n]=this.glassColor(); aux[n]=0; this.still[n]=0; }
+      if (t===SLIME && Math.random()<0.2){ type[n]=SMOKE; aux[n]=90; color[n]=this.smokeColor(90); this.proc[n]=1; }
+      if (t===SAND && Math.random()<0.16){ type[n]=GLASS; color[n]=this.glassColor(); aux[n]=0; this.still[n]=0; }
+      if (this.flammable(t) && Math.random()<0.5) this.ignite(n,t);
+    }
+    if (!this.keepLava && Math.random()<0.0015){ type[idx]=STONE; color[idx]=pack(74+Math.random()*20, 78, 88); return; }
+    if (Math.random()<0.45) this.liquidFlow(x,y,idx);
+  }
+
+  // ice melts near anything hot and slowly freezes the water it touches
+  ice(x,y,idx){
+    const {cols,rows,type,color,aux} = this;
+    for (const n of [idx-1, idx+1, idx-cols, idx+cols]){
+      if (n<0||n>=cols*rows) continue;
+      const t = type[n];
+      if (t===FIRE||t===LAVA||t===STEAM){
+        type[idx]=WATER; color[idx]=pack(48+Math.random()*10,110+Math.random()*16,190); aux[idx]=0;
+        return;
+      }
+      if (!this.noFreeze && t===WATER && Math.random()<0.012){ type[n]=ICE; color[n]=this.iceColor(); aux[n]=0; }
+    }
+  }
+
+  // gunpowder detonates: a hollow of flame that sets off any powder it touches
+  explode(idx, r0){
+    const {cols,rows,type,color,aux} = this;
+    const cx = idx%cols, cy = (idx/cols)|0, r = r0 || 4;
+    for (let dy=-r;dy<=r;dy++) for (let dx=-r;dx<=r;dx++){
+      const nx=cx+dx, ny=cy+dy;
+      if (nx<0||nx>=cols||ny<0||ny>=rows) continue;
+      const d = Math.hypot(dx,dy); if (d>r) continue;
+      const n = ny*cols+nx, t = type[n];
+      if (t===POWDER){
+        type[n]=FIRE; this.fuel[n]=0; aux[n]=18+((Math.random()*14)|0);
+        color[n]=this.fireColor(1,1); this.still[n]=0; this.proc[n]=0; continue;
+      }
+      if (t===METAL||t===PORTAL) continue;
+      if (t===CRYSTAL){ type[n]=SALT; color[n]=this.saltColor(); aux[n]=0; this.still[n]=0; continue; }
+      if (t===STONE||t===GLASS){
+        if (Math.random()<0.2){ type[n]=EMPTY; color[n]=this.BG; aux[n]=0; this.still[n]=0; }
+        continue;
+      }
+      if (t===WATER||t===ICE||t===SNOW) continue;
+      const flame = d < r*0.65 && Math.random()<0.7;
+      type[n] = flame ? FIRE : EMPTY;
+      if (flame){ this.fuel[n]=0; aux[n]=14+((Math.random()*18)|0); color[n]=this.fireColor(1,1); }
+      else { color[n]=this.BG; aux[n]=0; }
+      this.still[n]=0;
+    }
+    // unsettle the loose material around the crater
+    for (let dy=-r-2;dy<=r+2;dy++) for (let dx=-r-2;dx<=r+2;dx++){
+      const nx=cx+dx, ny=cy+dy;
+      if (nx<0||nx>=cols||ny<0||ny>=rows) continue;
+      this.still[ny*cols+nx]=0;
+    }
+  }
+
+  // snow drifts down, packs into ice under its own weight, melts near heat or salt
+  snow(x,y,idx){
+    const {cols,rows,type,color,aux} = this;
+    for (const n of [idx-1, idx+1, idx-cols, idx+cols]){
+      if (n<0||n>=cols*rows) continue;
+      const t = type[n];
+      if (t===FIRE||t===LAVA||t===STEAM||t===WATER||(t===SALT&&Math.random()<0.25)){
+        type[idx]=WATER; color[idx]=pack(48+Math.random()*10,110+Math.random()*16,190); aux[idx]=0;
+        return;
+      }
+    }
+    if (y>1 && type[idx-cols]===SNOW && type[idx-cols*2]===SNOW && Math.random()<0.0016){
+      type[idx]=ICE; color[idx]=this.iceColor(); return;
+    }
+    if (Math.random()<0.45) return;    // falls lazily
+    if (y>=rows-1) return;
+    const b = idx+cols;
+    if (type[b]===EMPTY){
+      const w = this.wind && Math.random()<0.3 ? this.wind : 0;
+      const n = (w && x+w>=0 && x+w<cols && type[b+w]===EMPTY) ? b+w : b;
+      this.swap(idx,n); return;
+    }
+    if (type[b]===WATER){
+      type[idx]=WATER; color[idx]=pack(48+Math.random()*10,110+Math.random()*16,190); aux[idx]=0; this.still[idx]=0;
+      return;
+    }
+    let d = Math.random()<0.5?1:-1;
+    for (let k=0;k<2;k++,d=-d){
+      const nx=x+d; if (nx<0||nx>=cols) continue;
+      if (type[b+d]===EMPTY && Math.random()<0.6){ this.swap(idx,b+d); return; }
+    }
+  }
+
+  // salt: melts ice and snow, dissolves into water, poisons plants
+  salt(x,y,idx){
+    const {cols,rows,type,color,aux} = this;
+    for (const n of [idx-1, idx+1, idx-cols, idx+cols]){
+      if (n<0||n>=cols*rows) continue;
+      const t = type[n];
+      // salt dissolves away in water without adding any water of its own
+      if (t===WATER && Math.random()<0.05){
+        type[idx]=EMPTY; color[idx]=this.BG; aux[idx]=0; this.still[idx]=0;
+        return;
+      }
+      // melting ice uses the salt up, and only part of the ice ends up as water
+      if ((t===ICE||t===SNOW) && Math.random()<0.3){
+        if (Math.random()<0.4){ type[n]=WATER; color[n]=pack(48,112,190); }
+        else { type[n]=EMPTY; color[n]=this.BG; }
+        aux[n]=0; this.still[n]=0;
+        if (Math.random()<0.35){ type[idx]=EMPTY; color[idx]=this.BG; aux[idx]=0; this.still[idx]=0; return; }
+      }
+      if (t===SLIME && Math.random()<0.05){ type[n]=EMPTY; color[n]=this.BG; aux[n]=0; this.still[n]=0; }
+      if ((t===GRASS||t===LEAF||t===SEED||t===MOSS) && Math.random()<0.04){
+        type[n]=ASH; color[n]=this.ashColor(n); aux[n]=0; this.still[n]=0;
+      }
+      if (t===SOIL && aux[n]>0 && Math.random()<0.05) this.dry(n,1);
+    }
+    this.fall(x,y,idx,true);
+  }
+
+  // marsh gas: rises, bubbles through liquid, flashes to flame near heat
+  gas(x,y,idx){
+    const {cols,rows,type,color,aux} = this;
+    for (const n of [idx-1, idx+1, idx-cols, idx+cols]){
+      if (n<0||n>=cols*rows) continue;
+      const t = type[n];
+      if (t===FIRE||t===LAVA){
+        type[idx]=FIRE; this.fuel[idx]=0; aux[idx]=14+((Math.random()*12)|0);
+        color[idx]=this.fireColor(1,1); return;
+      }
+      if (t===POWDER && Math.random()<0.02) continue;
+    }
+    if (y>0){
+      const u = idx-cols, tu = type[u];
+      if (tu===EMPTY||tu===WATER||tu===OIL||tu===ACID){ this.swap(idx,u); this.proc[u]=1; return; }
+    }
+    const d = Math.random()<0.5?-1:1;
+    if (x+d>=0 && x+d<cols && type[idx+d]===EMPTY){ this.swap(idx, idx+d); this.proc[idx+d]=1; }
+  }
+
+  // ---- seeds and trees ----
+  woodColor(){ const j = Math.random()*22-11; return pack(104+j, 72+j*0.8, 46+j*0.6); }
+  leafColor(){ return hsl(88+Math.random()*52, 38+Math.random()*22, 26+Math.random()*20); }
+
+  seed(x,y,idx){
+    const {cols,rows,type,color,aux} = this;
+    if (this.fall(x,y,idx,true)) return;
+    if (y>=rows-1) return;
+    const b = idx+cols;
+    if (type[b]!==SOIL&&type[b]!==GRASS) return;
+    let found = -1;
+    for (let dx=-1;dx<=1&&found<0;dx++) for (let dy=0;dy<=4;dy++){
+      const nx=x+dx, ny=y+1+dy;
+      if (nx<0||nx>=cols||ny>=rows) continue;
+      const n = ny*cols+nx;
+      if (type[n]===SOIL&&aux[n]>0){ found=n; break; }
+    }
+    if (found<0) return;
+    this.dry(found,1);
+    type[idx]=WOOD; color[idx]=this.woodColor(); aux[idx]=0;
+    if (this.growers.length<160)
+      this.growers.push({x,y,rx:x,ry:y+1,energy:26+((Math.random()*16)|0),dir:0,drift:0,wait:0});
+  }
+
+  sip(g){
+    const {cols,rows,type,aux} = this;
+    for (let r=1;r<=5;r++) for (let k=0;k<8;k++){
+      const nx = g.rx+((Math.random()*(2*r+1))|0)-r;
+      const ny = g.ry+((Math.random()*(r+2))|0);
+      if (nx<0||nx>=cols||ny<0||ny>=rows) continue;
+      const n = ny*cols+nx;
+      if (type[n]===SOIL&&aux[n]>0){ this.dry(n,1); return true; }
+    }
+    return false;
+  }
+
+  place(x,y,t,c){
+    const {cols,rows,type,color,aux} = this;
+    if (x<0||x>=cols||y<0||y>=rows) return false;
+    const i = y*cols+x;
+    if (type[i]!==EMPTY&&type[i]!==LEAF&&type[i]!==WATER&&type[i]!==GRASS) return false;
+    type[i]=t; color[i]=c; aux[i]=0;
+    return true;
+  }
+
+  canopy(x,y,r){
+    const {cols,rows,type,color,aux} = this;
+    for (let dy=-r;dy<=r;dy++) for (let dx=-r;dx<=r;dx++){
+      if (dx*dx+dy*dy>r*r+r) continue;
+      if (Math.random()<0.22) continue;
+      if (x+dx<0||x+dx>=cols||y+dy<0||y+dy>=rows) continue;
+      const i = (y+dy)*cols+(x+dx);
+      if (type[i]===EMPTY||type[i]===WATER){ type[i]=LEAF; color[i]=this.leafColor(); aux[i]=0; }
+    }
+  }
+
+  grow(){
+    const {cols,type} = this;
+    for (let i=this.growers.length-1;i>=0;i--){
+      const g = this.growers[i];
+      if (type[g.y*cols+g.x]!==WOOD){ this.growers.splice(i,1); continue; }
+      if (g.wait>0){ g.wait--; continue; }
+      if (!this.sip(g)){ g.wait=6; continue; }
+      g.wait=1;
+      g.drift += (Math.random()-0.5)*0.7 + g.dir*0.5;
+      g.drift = Math.max(-1.1, Math.min(1.1, g.drift));
+      let stepX = 0;
+      if (Math.abs(g.drift)>0.55 && Math.random()<Math.abs(g.drift)*0.7){ stepX = g.drift>0?1:-1; g.drift*=0.35; }
+      const nx = g.x+stepX, ny = g.y-1;
+      if (!this.place(nx,ny,WOOD,this.woodColor())){
+        this.canopy(g.x, g.y-1, 2+((Math.random()*2)|0));
+        this.growers.splice(i,1); continue;
+      }
+      g.x=nx; g.y=ny; g.energy--;
+      if (g.energy>8 && Math.random()<0.11 && this.growers.length<160)
+        this.growers.push({x:g.x,y:g.y,rx:g.rx,ry:g.ry,energy:(g.energy*0.55)|0,dir:Math.random()<0.5?1:-1,drift:0,wait:0});
+      if (g.energy<12 && Math.random()<0.35) this.canopy(g.x,g.y,1+((Math.random()*2)|0));
+      if (g.energy<=0){ this.canopy(g.x,g.y,2+((Math.random()*3)|0)); this.growers.splice(i,1); }
+    }
+  }
+
+  // ---- painting ----
+  grainColor(idx){
+    const m = this.state.material;
+    if (m===WATER) return pack(48+Math.random()*10, 110+Math.random()*16, 190+Math.random()*20);
+    if (m===STONE){ const g = 76+Math.random()*26; return pack(g, g+3, g+7); }
+    if (m===SOIL) return this.soilColor(idx,0);
+    if (m===SEED) return pack(150+Math.random()*24, 116+Math.random()*20, 52);
+    if (m===OIL) return this.oilColor();
+    if (m===ACID) return this.acidColor();
+    if (m===LAVA) return this.lavaColor();
+    if (m===ICE) return this.iceColor();
+    if (m===GLASS) return this.glassColor();
+    if (m===POWDER) return this.powderColor();
+    if (m===SNOW) return this.snowColor();
+    if (m===SALT) return this.saltColor();
+    if (m===GAS) return this.gasColor();
+    if (m===METAL) return this.metalColor(idx,0);
+    if (m===SPARK) return hsl(54,100,84);
+    if (m===SMOKE) return this.smokeColor(120);
+    if (m===SLIME) return hsl(96+Math.random()*14, 58, 40+Math.random()*10);
+    if (m===CRYSTAL) return this.crystalColor();
+    if (m===MOSS) return this.mossColor();
+    if (m===ANTI) return this.antiColor();
+    if (this.state.spectrum) return hsl(this.hue, 68, 56+Math.random()*8-4);
+    const p = PIGMENTS[this.state.pigment].rgb, f = 0.86+Math.random()*0.28;
+    return pack(p[0]*f, p[1]*f, p[2]*f);
+  }
+
+  put(x,y){
+    const {cols,rows,type,color,aux} = this;
+    if (x<0||x>=cols||y<0||y>=rows) return;
+    const idx = y*cols+x, m = this.state.material;
+    if (m===LIFE){ this.seedLife(x,y); return; }
+    if (m===EMPTY){
+      if (type[idx]===EMPTY) return;
+      type[idx]=EMPTY; color[idx]=this.BG; aux[idx]=0; this.still[idx]=0; return;
+    }
+    if (m===FIRE){
+      if (type[idx]===EMPTY){ type[idx]=FIRE; aux[idx]=FIRE_LIFE[6]; this.fuel[idx]=0; color[idx]=this.fireColor(1,1); return; }
+      if (this.flammable(type[idx])) this.ignite(idx, type[idx]);
+      return;
+    }
+    if (type[idx]!==EMPTY && m!==STONE && m!==METAL && !(m===CRYSTAL && type[idx]===WATER) && !(m===PORTAL && type[idx]===WATER)) return;
+    type[idx]=m; color[idx]=this.grainColor(idx); aux[idx]=0; this.still[idx]=0;
+    if (m===SPARK) aux[idx]=5+((Math.random()*5)|0);
+    if (m===SMOKE) aux[idx]=90+((Math.random()*60)|0);
+    if (m===MOSS) aux[idx]=12|64;
+    if (m===PORTAL){
+      const side = this.portalSide||1;
+      aux[idx]=side; color[idx]=this.portalColor(side);
+      this.portals = this.portals || {1:[],2:[]};
+      this.portals[side].push(idx);
+    }
+  }
+
+  inShape(x,y,r){
+    switch (this.state.shape){
+      case 'square': return true;
+      case 'ring': { const d = Math.hypot(x,y); return d<=r && d>=r-Math.max(1.2, r*0.28); }
+      case 'frame': return Math.max(Math.abs(x),Math.abs(y)) >= r-Math.max(1, Math.round(r*0.25));
+      case 'triangle': { const t = (y+r)/(2*r||1); return Math.abs(x) <= t*r; }
+      case 'diamond': return Math.abs(x)+Math.abs(y) <= r;
+      case 'cross': { const w = Math.max(1, Math.round(r*0.35)); return Math.abs(x)<=w || Math.abs(y)<=w; }
+      default: return x*x+y*y <= r*r;
+    }
+  }
+
+  disc(cx,cy,r){
+    const m = this.state.material;
+    if (m===SEED||m===LIFE){ this.put(cx,cy); return; }   // one per stroke position, brush size ignored
+    for (let y=-r;y<=r;y++) for (let x=-r;x<=r;x++){
+      if (!this.inShape(x,y,r)) continue;
+      if (m!==EMPTY && r>1 && Math.random()<0.25) continue;
+      this.put(cx+x, cy+y);
+    }
+  }
+
+  pourable(){ const m = this.state.material; return m!==EMPTY && m!==STONE && m!==LIFE && m!==METAL && m!==CRYSTAL && m!==PORTAL && m!==SPARK && m!==ANTI && m!==SMOKE; }
+
+  pour(){
+    if (!this.down || !this.type) return;
+    if (this.state.material===SEED){
+      // one seed per press, or per fresh cell while dragging — never a stream
+      const key = this.state.mode==='pour' ? 'p'+this.pressId : this.px+','+this.py;
+      if (this.lastSeed === key) return;
+      this.lastSeed = key;
+    }
+    if (this.state.spectrum) this.hue = (this.hue+0.9)%360;
+    if (this.state.mode==='pour' && this.pourable()){
+      let ty = 1;
+      for (let scan=1;scan<8&&ty<this.rows-1;scan++){
+        const x = Math.max(0, Math.min(this.cols-1, this.px));
+        if (this.type[Math.min(ty,this.rows-1)*this.cols+x]===EMPTY) break;
+        ty++;
+      }
+      this.disc(this.px, Math.min(ty,this.rows-1), Math.max(1, Math.round(this.state.brush/2)));
+    } else {
+      this.disc(this.px, this.py, this.state.brush);
+    }
+  }
+
+  nozzle(e){
+    const el = this.nozzleRef.current;
+    if (!el) return;
+    if (this.state.mode!=='pour' || !this.pourable()){ el.style.opacity = 0; return; }
+    const r = this.wrapRef.current.getBoundingClientRect();
+    const m = this.state.material;
+    el.style.left = (e.clientX-r.left)+'px';
+    el.style.color = m===WATER ? '#5b93e0' : m===SOIL ? '#8d6440' : m===SEED ? '#b98f4a'
+      : m===FIRE ? '#ef7a1e' : this.state.spectrum ? '#e9e9ed' : 'rgb('+PIGMENTS[this.state.pigment].rgb.join(',')+')';
+    el.style.opacity = 0.9;
+  }
+
+  tick = () => {
+    this.raf = requestAnimationFrame(this.tick);
+    try {
+      if (!this.frame || (this.frame & 31)===0) this.resize();
+      if (!this.buf) return;
+      this.pour();
+      if (!this.state.paused){
+        // gravity pace: step the sim every Nth frame so grains drift down instead of snapping
+        const every = Math.max(1, Math.round(this.props.fallInterval ?? 2));
+        if (this.frame % every === 0) this.step();
+        if ((this.frame & 1)===0) this.critterStep();
+      }
+      this.buf.set(this.color);
+      this.ctx.putImageData(this.img, 0, 0);
+      this.drawZap();
+      this.drawCritters();
+      if ((this.frame & 15)===0) this.checkGoal();
+      if ((this.frame & 31)===0){
+        let n = 0;
+        for (let i=0;i<this.type.length;i++) if (this.type[i]!==EMPTY) n++;
+        if (n !== this.state.count) this.setState({count:n});
+      }
+      this.frame++;
+    } catch(err){
+      console.error('Sandfall frame error, continuing:', err);
+    }
+  };
+
+  setMaterial(m){
+    const patch = {material:m};
+    if (m===STONE||m===EMPTY||m===FIRE) patch.mode = 'paint';
+    this.setState(patch);
+  }
+
+  renderVals(){
+    const on = (sel) => ({
+      border: sel ? 'var(--color-accent)' : 'var(--color-neutral-700)',
+      bg: sel ? 'color-mix(in srgb, var(--color-accent) 18%, transparent)' : 'transparent',
+      fg: 'var(--color-text)'
+    });
+    const wells = PIGMENTS.map((p,i) => ({
+      name: p.name,
+      bg: 'rgb('+p.rgb.join(',')+')',
+      ring: (!this.state.spectrum && this.state.pigment===i) ? '2px solid var(--color-text)' : 'none',
+      pick: () => { this.setState({pigment:i, spectrum:false}); this.setMaterial(SAND); }
+    }));
+    wells.push({
+      name: 'Regnbåge',
+      bg: 'conic-gradient(#e2574c,#e9a03c,#ddd04a,#4fb97e,#4a8fd8,#8a6ad6,#e2574c)',
+      ring: this.state.spectrum ? '2px solid var(--color-text)' : 'none',
+      pick: () => { this.setState({spectrum:true}); this.setMaterial(SAND); }
+    });
+    const CATS = [
+      ['nature','Natur','ph-fill ph-tree','#6fb865'],
+      ['hot','Varmt','ph-fill ph-fire','#ef7a1e'],
+      ['magic','Magi','ph-fill ph-magic-wand','#c49be0'],
+      ['colors','Färger','ph-fill ph-palette','#e9a03c']
+    ];
+    const EL = {
+      nature: [
+        [SAND,'Sand','ph-fill ph-hourglass-medium','#d9b56a'],[WATER,'Vatten','ph-fill ph-drop','#4f8fd6'],
+        [SOIL,'Jord','ph-fill ph-shovel','#9a6b45'],[SEED,'Frö','ph-fill ph-plant','#6fb865'],
+        [LIFE,'Djur','ph-fill ph-paw-print','#e2934a'],[STONE,'Sten','ph-fill ph-mountains','#8d8f9c'],
+        [SNOW,'Snö','ph-fill ph-cloud-snow','#dfe6f0'],[ICE,'Is','ph-fill ph-snowflake','#a9d8ea'],
+        [MOSS,'Mossa','ph-fill ph-leaf','#5f9a45'],[SALT,'Salt','ph-fill ph-grains','#e6e0d2']
+      ],
+      hot: [
+        [FIRE,'Eld','ph-fill ph-fire','#ef7a1e'],[LAVA,'Lava','ph-fill ph-thermometer-hot','#e5502a'],
+        [OIL,'Olja','ph-fill ph-gas-can','#8a7a6c'],[POWDER,'Krut','ph-fill ph-bomb','#9a96a8'],
+        [GAS,'Gas','ph-fill ph-wind','#9aab5e'],[SPARK,'Gnista','ph-fill ph-lightning','#f6d860'],
+        [SMOKE,'Rök','ph-fill ph-cloud-fog','#8a8b94'],[METAL,'Metall','ph-fill ph-cube','#aab0bd']
+      ],
+      magic: [
+        [ACID,'Syra','ph-fill ph-flask','#a6d63c'],[SLIME,'Slem','ph-fill ph-drop-half','#7fb33c'],
+        [CRYSTAL,'Kristall','ph-fill ph-sketch-logo','#c49be0'],[PORTAL,'Portal','ph-bold ph-spiral','#4f9be6'],
+        [ANTI,'Svävsand','ph-fill ph-arrow-fat-lines-up','#8fd3dc']
+      ]
+    };
+    const lvl = this.state.lvl, L = lvl!=null ? LEVELS[lvl] : null;
+    const cat = L ? 'level' : (this.state.cat || 'nature');
+    if (L){
+      const all = {}; for (const k in EL) for (const e of EL[k]) all[e[0]] = e;
+      EL.level = L.tools.map(m => all[m]).filter(Boolean);
+    }
+    const cats = CATS.map(([k,label,icon,tint]) => ({
+      label, icon, tint,
+      border: cat===k ? 'var(--color-accent)' : 'var(--color-neutral-700)',
+      bg: cat===k ? 'color-mix(in srgb, var(--color-accent) 22%, transparent)' : 'transparent',
+      pick: () => this.setState({cat:k})
+    }));
+    const tiles = (EL[cat] || []).map(([m,label,icon,tint]) => {
+      const sel = this.state.material===m && !(m===SAND && this.state.spectrum);
+      return {
+        label, icon, tint,
+        border: sel ? 'var(--color-text)' : 'transparent',
+        bg: 'color-mix(in srgb, ' + tint + (sel ? ' 34%' : ' 16%') + ', var(--color-bg))',
+        lift: sel ? 'scale(1.06)' : 'none',
+        pick: () => { if (m===SAND) this.setState({spectrum:false}); this.setMaterial(m); }
+      };
+    });
+    const SIZES = [[2,'Liten','10px'],[5,'Mellan','20px'],[10,'Stor','32px']];
+    const b = this.state.brush;
+    const near = SIZES.reduce((a,z) => Math.abs(z[0]-b) < Math.abs(a[0]-b) ? z : a, SIZES[0])[0];
+    const sizes = SIZES.map(([v,label,dot]) => ({
+      label, dot,
+      border: near===v ? 'var(--color-accent)' : 'var(--color-neutral-700)',
+      bg: near===v ? 'color-mix(in srgb, var(--color-accent) 18%, transparent)' : 'transparent',
+      pick: () => this.setState({brush:v})
+    }));
+    const erasing = this.state.material===EMPTY;
+    const pour = this.state.mode==='pour';
+    return {
+      wells, cats, tiles, sizes,
+      showElements: cat!=='colors', showColors: cat==='colors', showCats: !L,
+      showEraser: !L,
+      inLevel: !!L,
+      lvName: L ? L.name : '', lvText: L ? L.text : '', lvIcon: L ? L.icon : '', lvTint: L ? L.tint : 'var(--color-accent)',
+      progPct: Math.round((this.state.prog||0)*100) + '%',
+      levelBtn: () => this.setState({picker:true}),
+      levelBtnLabel: 'Banor',
+      levelBtnIcon: 'ph-fill ph-puzzle-piece',
+      showPicker: !!this.state.picker,
+      openPicker: () => this.setState({picker:true, won:false}),
+      closePicker: () => this.setState({picker:false}),
+      playFree: () => this.exitLevel(),
+      levelTiles: LEVELS.map((lv,i) => ({
+        num: String(i+1), name: lv.name, icon: lv.icon, tint: lv.tint,
+        done: (this.state.done||[]).includes(i),
+        border: lvl===i ? 'var(--color-accent)' : 'var(--color-neutral-700)',
+        pick: () => this.startLevel(i)
+      })),
+      showWin: !!this.state.won && !this.state.picker,
+      hasNext: lvl!=null && lvl < LEVELS.length-1,
+      nextLevel: () => this.startLevel((lvl||0)+1),
+      toggleMode: () => this.setState(s => ({mode: s.mode==='pour' ? 'paint' : 'pour'})),
+      modeIcon: pour ? 'ph-fill ph-cloud-rain' : 'ph-fill ph-hand-pointing',
+      modeLabel: pour ? 'Regn' : 'Rita',
+      pickEraser: () => this.setMaterial(EMPTY),
+      eraserBorder: erasing ? 'var(--color-accent)' : 'var(--color-neutral-700)',
+      eraserBg: erasing ? 'color-mix(in srgb, var(--color-accent) 18%, transparent)' : 'transparent',
+      togglePause: () => this.setState(s => ({paused:!s.paused})),
+      pauseLabel: this.state.paused ? 'Spela' : 'Paus',
+      pauseIcon: this.state.paused ? 'ph-fill ph-play' : 'ph-fill ph-pause',
+      pauseBorder: this.state.paused ? 'var(--color-accent)' : 'var(--color-neutral-700)',
+      undo: this.undo,
+      undoColor: (this.state.undos || 0) ? 'var(--color-text)' : 'var(--color-neutral-600)',
+      // clearing needs two taps so a stray finger can't wipe the picture
+      clearTap: () => {
+        if (this.state.clearArm){ clearTimeout(this.clearT); this.setState({clearArm:false}); this.clear(); return; }
+        this.setState({clearArm:true});
+        clearTimeout(this.clearT);
+        this.clearT = setTimeout(() => this.setState({clearArm:false}), 2500);
+      },
+      clearLabel: this.state.clearArm ? 'Säker?' : (L ? 'Börja om' : 'Rensa'),
+      clearBorder: this.state.clearArm ? '#e5502a' : 'var(--color-neutral-700)',
+      clearBg: this.state.clearArm ? 'color-mix(in srgb, #e5502a 22%, transparent)' : 'transparent',
+      canvasRef: this.canvasRef, wrapRef: this.wrapRef, nozzleRef: this.nozzleRef
+    };
+  }
+}
+
+
+// ---- view ----
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+// bilder i stället för text på ämnesknapparna, så att barn som inte läser hittar rätt
+const PICS = {
+  'Sand':'🏖️', 'Vatten':'💧', 'Jord':'🪱', 'Frö':'🌱', 'Djur':'🐰', 'Sten':'🪨', 'Snö':'⛄', 'Is':'🧊', 'Mossa':'🌿', 'Salt':'🧂',
+  'Eld':'🔥', 'Lava':'🌋', 'Olja':'🛢️', 'Krut':'💣', 'Gas':'🫧', 'Gnista':'⚡', 'Rök':'💨', 'Metall':'🔩',
+  'Syra':'🧪', 'Slem':'🐌', 'Kristall':'💎', 'Portal':'🌀', 'Svävsand':'🎈'
+};
+const TOOL_PICS = {
+  'Banor':'🧩', 'Rita':'👆', 'Regn':'🌧️', 'Sudda':'🧽', 'Ångra':'↩️', 'Paus':'⏸️', 'Spela':'▶️',
+  'Rensa':'🗑️', 'Börja om':'🔄', 'Säker?':'❓'
+};
+const ICONS = {"ph-drop-slash":"💧","ph-fish":"🐟","ph-plant":"🌱","ph-snowflake":"❄️","ph-thermometer-hot":"🌋","ph-flask":"🧪","ph-fire":"🔥","ph-spiral":"🌀","ph-puzzle-piece":"🧩","ph-x":"✕","ph-paint-brush-broad":"🖌️","ph-star":"⭐","ph-squares-four":"🧩","ph-arrow-right":"➡️"};
+const ico = cls => ICONS[String(cls).split(' ').pop()] || '';
+const CAT_PICS = { 'Natur':'🌳', 'Varmt':'🔥', 'Magi':'🪄', 'Färger':'🎨' };
+const regions = {};
+let handlers = {};
+const lastHtml = {};
+
+function paint(name, html){
+  if (lastHtml[name] === html) return;
+  lastHtml[name] = html;
+  const el = regions[name];
+  const scroll = {};
+  el.querySelectorAll('[data-scroll]').forEach(n => { scroll[n.dataset.scroll] = n.scrollLeft; });
+  const focused = el.contains(document.activeElement) ? document.activeElement.dataset.h : null;
+  el.innerHTML = html;
+  el.querySelectorAll('[data-scroll]').forEach(n => { if (scroll[n.dataset.scroll]) n.scrollLeft = scroll[n.dataset.scroll]; });
+  if (focused){ const f = el.querySelector('[data-h="' + focused + '"]'); if (f) f.focus({ preventScroll: true }); }
+}
+
+function render(){
+  const v = app.renderVals();
+  const next = {};
+  let region = '', n = 0;
+  const on = fn => { const id = region + ':' + (n++); next[id] = fn; return 'data-h="' + id + '"'; };
+  const start = name => { region = name; n = 0; };
+  const tool = (fn, label, icon, style, labelColor) =>
+    '<button type="button" class="tool" ' + on(fn) + ' aria-label="' + esc(label) + '" style="' + style + '">' +
+    (TOOL_PICS[label]
+      ? '<span class="pic" aria-hidden="true" style="font-size:34px;color:inherit">' + TOOL_PICS[label] + '</span>'
+      : '<span class="pic" aria-hidden="true">' + ico(icon) + '</span><span' + (labelColor ? ' style="color:' + labelColor + '"' : '') + '>' + esc(label) + '</span>') + '</button>';
+
+  start('hud');
+  paint('hud', !v.inLevel ? '' :
+    '<div style="position:absolute;top:12px;left:80px;right:12px;display:flex;justify-content:center;pointer-events:none">' +
+    '<div style="display:flex;align-items:center;gap:14px;max-width:560px;width:100%;padding:12px 16px;border-radius:var(--radius-lg);background:color-mix(in srgb, var(--color-neutral-900) 88%, transparent);border:1px solid var(--color-neutral-700);box-shadow:var(--shadow-md)">' +
+    '<div style="width:48px;height:48px;flex-shrink:0;display:flex;align-items:center;justify-content:center;border-radius:50%;background:color-mix(in srgb, ' + v.lvTint + ' 26%, transparent);color:' + v.lvTint + '"><span class="pic" aria-hidden="true" style="font-size:28px">' + ico(v.lvIcon) + '</span></div>' +
+    '<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:7px">' +
+    '<div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap">' +
+    '<span style="font-family:var(--font-heading);font-size:18px;font-weight:500">' + esc(v.lvName) + '</span>' +
+    '<span style="font-size:14px;color:var(--color-neutral-300)">' + esc(v.lvText) + '</span></div>' +
+    '<div style="height:12px;border-radius:999px;background:var(--color-neutral-800);overflow:hidden">' +
+    '<div style="height:100%;width:' + v.progPct + ';border-radius:999px;background:' + v.lvTint + ';transition:width .4s"></div>' +
+    '</div></div></div></div>');
+
+  start('rail');
+  paint('rail',
+    tool(v.levelBtn, v.levelBtnLabel, v.levelBtnIcon, 'border:3px solid var(--color-accent);background:color-mix(in srgb, var(--color-accent) 18%, transparent)', 'var(--color-neutral-200)') +
+    '<div class="rule"></div>' +
+    v.sizes.map(z => '<button type="button" ' + on(z.pick) + ' aria-label="' + esc(z.label) + '" style="width:64px;height:64px;flex-shrink:0;display:flex;align-items:center;justify-content:center;padding:0;cursor:pointer;border-radius:var(--radius-lg);border:3px solid ' + z.border + ';background:' + z.bg + '"><span style="width:' + z.dot + ';height:' + z.dot + ';border-radius:50%;background:var(--color-text)"></span></button>').join('') +
+    '<div class="rule"></div>' +
+    tool(v.toggleMode, v.modeLabel, v.modeIcon, 'border:3px solid var(--color-neutral-700);background:transparent') +
+    (v.showEraser ? tool(v.pickEraser, 'Sudda', 'ph-fill ph-eraser', 'border:3px solid ' + v.eraserBorder + ';background:' + v.eraserBg) : '') +
+    tool(v.undo, 'Ångra', 'ph-bold ph-arrow-counter-clockwise', 'border:3px solid var(--color-neutral-700);background:transparent;color:' + v.undoColor + (v.undoColor.includes('600') ? ';--pic-o:.35' : '')) +
+    tool(v.togglePause, v.pauseLabel, v.pauseIcon, 'border:3px solid ' + v.pauseBorder + ';background:transparent') +
+    tool(v.clearTap, v.clearLabel, 'ph-fill ph-trash', 'border:3px solid ' + v.clearBorder + ';background:' + v.clearBg));
+
+  start('bottom');
+  paint('bottom',
+    (v.showCats ? '<div style="display:flex;gap:8px;flex-wrap:wrap">' + v.cats.map(c =>
+      '<button type="button" ' + on(c.pick) + ' aria-label="' + esc(c.label) + '" style="height:56px;display:flex;align-items:center;gap:8px;padding:0 22px;cursor:pointer;font-family:var(--font-body);font-size:16px;font-weight:500;border-radius:999px;border:3px solid ' + c.border + ';background:' + c.bg + ';color:var(--color-text)">' + (CAT_PICS[c.label]
+        ? '<span class="pic" aria-hidden="true" style="font-size:32px">' + CAT_PICS[c.label] + '</span>'
+        : '<span class="pic" aria-hidden="true" style="font-size:22px;color:' + c.tint + '">' + ico(c.icon) + '</span>' + esc(c.label)) + '</button>').join('') + '</div>' : '') +
+    (v.showElements ? '<div data-scroll="tiles" style="display:flex;gap:10px;overflow-x:auto;padding:4px 2px 6px;-webkit-overflow-scrolling:touch">' + v.tiles.map(t =>
+      '<button type="button" ' + on(t.pick) + ' aria-label="' + esc(t.label) + '" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:0;cursor:pointer;font-family:var(--font-body);width:78px;height:78px;flex-shrink:0;border-radius:var(--radius-lg);border:3px solid ' + t.border + ';background:' + t.bg + ';color:' + t.tint + ';transform:' + t.lift + ';transition:transform .12s">' + (PICS[t.label]
+        ? '<span class="pic" aria-hidden="true">' + PICS[t.label] + '</span>'
+        : '<span class="pic" aria-hidden="true" style="font-size:34px">' + ico(t.icon) + '</span><span style="font-size:12px;font-weight:500;color:var(--color-text)">' + esc(t.label) + '</span>') + '</button>').join('') + '</div>' : '') +
+    (v.showColors ? '<div data-scroll="wells" style="display:flex;gap:14px;overflow-x:auto;padding:6px 4px 8px">' + v.wells.map(w =>
+      '<button type="button" ' + on(w.pick) + ' aria-label="' + esc(w.name) + '" style="width:66px;height:66px;flex-shrink:0;border-radius:50%;padding:0;cursor:pointer;background:' + w.bg + ';border:2px solid var(--color-neutral-800);box-shadow:inset 0 -5px 8px rgba(0,0,0,.28);outline:' + w.ring + ';outline-offset:4px"></button>').join('') + '</div>' : ''));
+
+  start('overlay');
+  let ov = '';
+  if (v.showPicker){
+    ov += '<div style="position:absolute;inset:0;z-index:5;display:flex;flex-direction:column;gap:18px;padding:24px;background:color-mix(in srgb, var(--color-bg) 94%, transparent);overflow-y:auto">' +
+      '<div style="display:flex;align-items:center;gap:14px">' +
+      '<span class="pic" aria-hidden="true" style="font-size:34px;color:var(--color-accent)">🧩</span>' +
+      '<div style="font-family:var(--font-heading);font-size:28px;font-weight:500;letter-spacing:-0.02em;flex:1">Välj bana</div>' +
+      '<button type="button" ' + on(v.closePicker) + ' aria-label="Stäng" style="width:56px;height:56px;display:flex;align-items:center;justify-content:center;padding:0;cursor:pointer;border-radius:50%;border:2px solid var(--color-neutral-700);background:transparent;color:var(--color-text)"><span class="pic" aria-hidden="true" style="font-size:26px">✕</span></button>' +
+      '</div>' +
+      '<div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(150px, 1fr));gap:14px">' +
+      '<button type="button" ' + on(v.playFree) + ' style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;min-height:150px;padding:12px;cursor:pointer;font-family:var(--font-body);border-radius:var(--radius-lg);border:3px solid var(--color-neutral-700);background:var(--color-neutral-900);color:var(--color-text)">' +
+      '<span class="pic" aria-hidden="true" style="font-size:44px;color:var(--color-accent)">🖌️</span><span style="font-size:17px;font-weight:500">Fri lek</span></button>' +
+      v.levelTiles.map(l =>
+        '<button type="button" ' + on(l.pick) + ' style="position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;min-height:150px;padding:12px;cursor:pointer;font-family:var(--font-body);border-radius:var(--radius-lg);border:3px solid ' + l.border + ';background:color-mix(in srgb, ' + l.tint + ' 14%, var(--color-neutral-900));color:var(--color-text)">' +
+        '<span style="position:absolute;top:8px;left:12px;font-family:var(--font-heading);font-size:18px;color:var(--color-neutral-300)">' + esc(l.num) + '</span>' +
+        (l.done ? '<span class="pic" role="img" aria-label="Klarad" style="position:absolute;top:8px;right:10px;font-size:24px;color:#f4c44e">⭐</span>' : '') +
+        '<span class="pic" aria-hidden="true" style="font-size:44px;color:' + l.tint + '">' + ico(l.icon) + '</span>' +
+        '<span style="font-size:16px;font-weight:500;text-align:center">' + esc(l.name) + '</span></button>').join('') +
+      '</div></div>';
+  }
+  if (v.showWin){
+    ov += '<div style="position:absolute;inset:0;z-index:6;display:flex;align-items:center;justify-content:center;padding:24px;background:color-mix(in srgb, var(--color-bg) 60%, transparent)">' +
+      '<div style="display:flex;flex-direction:column;align-items:center;gap:16px;padding:28px 32px;border-radius:var(--radius-lg);background:var(--color-neutral-900);border:1px solid var(--color-neutral-700);box-shadow:var(--shadow-lg)">' +
+      '<span class="pic" aria-hidden="true" style="font-size:72px;color:#f4c44e">⭐</span>' +
+      '<div style="font-family:var(--font-heading);font-size:30px;font-weight:500;letter-spacing:-0.02em">Bra jobbat!</div>' +
+      '<div style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center">' +
+      '<button type="button" class="pill" ' + on(v.openPicker) + ' style="border:2px solid var(--color-neutral-700);background:transparent"><span class="pic" aria-hidden="true" style="font-size:24px">🧩</span>Banor</button>' +
+      (v.hasNext ? '<button type="button" class="pill" ' + on(v.nextLevel) + ' style="border:2px solid var(--color-accent);background:color-mix(in srgb, var(--color-accent) 20%, transparent)">Nästa bana<span class="pic" aria-hidden="true" style="font-size:22px">➡️</span></button>' : '') +
+      '</div></div></div>';
+  }
+  paint('overlay', ov);
+  handlers = next;
+}
+
+const app = new Component();
+for (const name of ['hud', 'rail', 'bottom', 'overlay']) regions[name] = document.getElementById(name);
+app.canvasRef.current = document.getElementById('cv');
+app.wrapRef.current = document.getElementById('wrap');
+app.nozzleRef.current = document.getElementById('nozzle');
+document.getElementById('app').addEventListener('click', e => {
+  const b = e.target.closest('[data-h]');
+  const fn = b && handlers[b.dataset.h];
+  if (fn) fn();
+});
+// bakåtknappen till portalen: två tryck, så att ett finger som halkar inte lämnar spelet
+const back = document.getElementById('back');
+let backArm = false, backT;
+const setBack = armed => {
+  backArm = armed;
+  back.style.borderColor = armed ? '#e5502a' : 'var(--color-neutral-700)';
+  back.firstElementChild.textContent = armed ? '❓' : '⬅️';
+};
+back.addEventListener('pointerdown', e => e.stopPropagation());
+back.addEventListener('click', e => {
+  e.stopPropagation();
+  clearTimeout(backT);
+  if (backArm){ location.href = '../../index.html'; return; }
+  setBack(true);
+  backT = setTimeout(() => setBack(false), 2500);
+});
+// knappar och rutor skalar med skärmen: alla verktyg ska få plats på höjden utan att rulla.
+// 910 = verktygsraden plus nedre fältet i grundstorlek, med lite marginal. Spelytan skalas inte, den fyller resten.
+const scaled = [regions.rail, regions.bottom, regions.overlay, regions.hud, back];
+const fit = () => {
+  const s = Math.max(0.6, Math.min(1.6, window.innerHeight / 910, window.innerWidth / 700));
+  for (const el of scaled) el.style.zoom = s;
+};
+window.addEventListener('resize', fit);
+fit();
+app.componentDidMount();
+render();
+</script>
+</body>
+</html>
