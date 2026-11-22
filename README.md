@@ -29,6 +29,15 @@ git commit -m "Beskriv ändringen"
 git push
 ```
 
+## Nästa spel att bygga
+
+I den här ordningen. Alla ska passa barn 5-10 år, ha samma stil, musik, röster, datorns nivåer och omgångar som Fyra i rad:
+
+1. **Fia med knuff** och **Memory** (byggs just nu, var sin session).
+2. **Svarte Petter**: kortspel där figurerna är korten.
+3. **Sänka skepp**: spännande och mer tänkande, lätt att spela mot datorn.
+4. **Gissa vem**: ja/nej-frågor för att hitta en hemlig figur, passar våra egna figurer.
+
 ## Lägga till kort
 
 Öppna `www/games/blabarsjakten/cards.js`. Ett kort är en rad. Kopiera en rad och ändra texten.
