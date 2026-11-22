@@ -96,3 +96,5 @@ body.calm .pc.ok::after, body.calm .dest::before { animation: none; }
   .chip { font-size: 16px; gap: 5px; padding-right: 10px; } .chip .goalnum, .chip .wins { font-size: 20px; } .chip .goalnum svg, .chip .wins svg { width: 20px; height: 20px; }
   .size.round-n { min-width: 44px; padding: 8px 2px; } .sizes .lbl { padding: 0 4px 0 6px; font-size: 14px; } #previewActions .sizes { max-width: 100%; }
 }
+
+.size.out { min-width: 84px; justify-content: center; } .size.out small { font-size: 17px; }

@@ -263,9 +263,14 @@ import * as FK from '../www/games/fiamedknuff/logic.js';
   g = FK.createGame(2); g.pieces[0] = [25, 5, FK.HOME, FK.HOME]; g.pieces[1] = [stepOn(2, FK.cellOf(0, 3)), FK.HOME, FK.HOME, FK.HOME];
   assert.equal(FK.threatened(g, 0, 5), true);
   assert.equal(FK.pickMove(g, 0, 5, 'hard', () => 0).i, 1, 'svår skyddar den hotade pjäsen');
+  // Utan krav på sexa: vilket slag som helst tar ut en pjäs, och den går slaget minus ett steg.
+  g = FK.createGame(2, false);
+  assert.equal(FK.needSix(g, 0), false); assert.equal(FK.rollsAllowed(g, 0), 1);
+  for (let d = 1; d <= 6; d++) assert.deepEqual(FK.legalMoves(g, 0, d), [{ i: 0, to: d - 1 }], 'alla slag tar ut en pjäs');
+  assert.equal(FK.applyMove(g, 0, 0, 3).to, 2);
   // Hela spel med slump: alla nivåer, 2-4 spelare. Någon vinner alltid och reglerna håller hela vägen.
-  const play = (n, levels) => {
-    const G = FK.createGame(n);
+  const play = (n, levels, sixOut = true) => {
+    const G = FK.createGame(n, sixOut);
     let p = 0, turns = 0, winner = -1;
     while (winner < 0 && turns++ < 20000) {
       let rolls = FK.rollsAllowed(G, p), again = true;
@@ -283,6 +288,7 @@ import * as FK from '../www/games/fiamedknuff/logic.js';
     return winner;
   };
   for (let run = 0; run < 90; run++) play(2 + (run % 3), [0, 1, 2, 3].map(i => FK.LEVELS[(run + i) % 3]));
+  for (let run = 0; run < 45; run++) play(2 + (run % 3), [0, 1, 2, 3].map(i => FK.LEVELS[(run + i) % 3]), false);
   let hardWins = 0;
   for (let run = 0; run < 200; run++) { const first = run % 2; if (play(2, first ? ['easy', 'hard'] : ['hard', 'easy']) === (first ? 1 : 0)) hardWins++; }
   assert.ok(hardWins > 110, `svår vinner oftast mot lätt (${hardWins}/200)`);

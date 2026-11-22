@@ -22,10 +22,10 @@ const FLAG = '<svg viewBox="0 0 40 40" aria-hidden="true"><path d="M10 5 V36" st
 
 // ---------- Val som sparas: spelplan, datorns nivå och hur många omgångar som krävs ----------
 let count = 2, names = ['Spelare 1', 'Spelare 2', 'Spelare 3', 'Spelare 4'], looks = DEFAULT_LOOKS.map(l => ({ ...l })), bot = false, botName = 'Robo';
-let board = 'blue', level = 'normal', target = 1;
+let board = 'blue', level = 'normal', target = 1, sixOut = true; // sixOut: måste man slå en sexa för att få ut en pjäs?
 try { ({ names, looks, bot, botName, count } = { names, looks, bot, botName, count, ...JSON.parse(localStorage.getItem('bbj-players') || '{}') }); } catch {}
-try { ({ board, level, target } = { board, level, target, ...JSON.parse(localStorage.getItem('fia-prefs') || '{}') }); } catch {}
-const savePrefs = () => { try { localStorage.setItem('fia-prefs', JSON.stringify({ board, level, target })); } catch {} };
+try { ({ board, level, target, sixOut } = { board, level, target, sixOut, ...JSON.parse(localStorage.getItem('fia-prefs') || '{}') }); } catch {}
+const savePrefs = () => { try { localStorage.setItem('fia-prefs', JSON.stringify({ board, level, target, sixOut })); } catch {} };
 // Namn och figurer delas med de andra spelen (samma nyckel). Vi lägger bara till våra värden, så inget där försvinner.
 const savePlayers = () => { try { localStorage.setItem('bbj-players', JSON.stringify({ ...JSON.parse(localStorage.getItem('bbj-players') || '{}'), names, looks, count, bot, botName })); } catch {} };
 const lineup = () => (bot
@@ -134,6 +134,8 @@ function renderPicker() {
   $('#levels').hidden = !bot; // datorns nivå visas bara när man spelar mot datorn
   if (bot) pill('#levels', 'Datorn', F.LEVELS.map((lvl, i) =>
     `<button class="size level ${lvl === level ? 'on' : ''}" data-level="${lvl}" aria-label="${LEVEL_NAME[lvl]} dator"><span class="heads">${robot('#1e88e5', true).repeat(i + 1)}</span><small>${LEVEL_NAME[lvl]}</small></button>`).join(''));
+  pill('#outs', 'Komma ut', [[true, 'Sexa'], [false, 'Alla slag']].map(([v, name]) =>
+    `<button class="size out ${v === sixOut ? 'on' : ''}" data-six="${v}" aria-label="Komma ut med ${name.toLowerCase()}"><small>${name}</small></button>`).join(''));
   pill('#rounds', 'Först till', [1, 2, 3, 4, 5].map(n =>
     `<button class="size round-n ${n === target ? 'on' : ''}" data-n="${n}" aria-label="Först till ${n}">${n}</button>`).join(''));
   document.body.dataset.board = board;
@@ -144,6 +146,7 @@ $('#previewActions').onclick = e => {
   if (b.dataset.board) board = b.dataset.board;
   if (b.dataset.level) level = b.dataset.level;
   if (b.dataset.n) target = +b.dataset.n;
+  if (b.dataset.six) sixOut = b.dataset.six === 'true';
   savePrefs(); sfx.pop(); renderPicker(); renderScores(); fit();
 };
 
@@ -166,7 +169,7 @@ new ResizeObserver(() => !$('#play').hidden && fit()).observe($('#boardWrap'));
 
 const seatColor = seat => { const i = g.seats.indexOf(seat); return i < 0 ? null : players[i].color; };
 function newGame() { // nytt bräde och nya pjäser, alla hemma
-  g = F.createGame(players.length);
+  g = F.createGame(players.length, sixOut);
   const sq = (cls, [x, y], c, inner = '') => `<div class="sq ${cls}" style="--x:${x};--y:${y};--c:${c}">${inner}</div>`;
   const QUAD = [[7, 0], [7, 7], [0, 7], [0, 0]]; // hörnet där varje plats har sitt hem
   let h = '';
@@ -252,7 +255,7 @@ function beginRoll(note) {
   state = 'roll'; pending = [];
   renderScores();
   setButton();
-  msg(note || (F.needSix(g, current) ? `Slå en sexa för att komma ut. Försök ${4 - tries} av 3.` : ''));
+  msg(note || (F.needSix(g, current) ? `Slå en sexa för att få ut en pjäs. Försök ${4 - tries} av 3.` : ''));
   if (isBot()) botThrow();
 }
 const botThrow = () => wait(1100).then(() => roll({ power: 0.35 + Math.random() * 0.5, dx: (Math.random() - 0.5) * 0.8, dy: -1 }));

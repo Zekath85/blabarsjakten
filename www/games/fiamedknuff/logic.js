@@ -19,7 +19,8 @@ export const cellOf = (seat, prog, i = 0) =>
   prog < 0 ? rot(HOME_SPOTS[i], seat) : prog < TRACK_LEN ? TRACK[(seat * 10 + prog) % TRACK_LEN] : rot(LANE[prog - TRACK_LEN], seat);
 
 // ---------- Spelet ----------
-export const createGame = n => ({ n, seats: seatsFor(n), pieces: Array.from({ length: n }, () => Array(4).fill(HOME)) });
+// sixOut: true = bara en sexa tar ut en pjäs. false = vilket slag som helst gör det (pjäsen går då slaget minus ett steg från startrutan).
+export const createGame = (n, sixOut = true) => ({ n, sixOut, seats: seatsFor(n), pieces: Array.from({ length: n }, () => Array(4).fill(HOME)) });
 const trackAt = (g, p, prog) => (g.seats[p] * 10 + prog) % TRACK_LEN;
 const onTrack = v => v >= 0 && v < TRACK_LEN;
 // Vilken pjäs står på banruta t? { p, i } eller null.
@@ -28,7 +29,7 @@ export function whoAt(g, t) {
   return null;
 }
 // Är alla spelarens pjäser hemma (eller redan i mål)? Då får hen slå tre gånger för att få en sexa.
-export const needSix = (g, p) => g.pieces[p].every(v => v === HOME || v === GOAL);
+export const needSix = (g, p) => g.sixOut && g.pieces[p].every(v => v === HOME || v === GOAL);
 export const rollsAllowed = (g, p) => (needSix(g, p) ? 3 : 1);
 export const hasWon = (g, p) => g.pieces[p].every(v => v === GOAL);
 export const inGoal = (g, p) => g.pieces[p].filter(v => v === GOAL).length;
@@ -40,7 +41,7 @@ export function legalMoves(g, p, d) {
   let homeSeen = false;
   g.pieces[p].forEach((prog, i) => {
     let to;
-    if (prog === HOME) { if (d !== 6 || homeSeen) return; homeSeen = true; to = 0; } // pjäserna hemma är likadana: ett drag räcker
+    if (prog === HOME) { if ((g.sixOut && d !== 6) || homeSeen) return; homeSeen = true; to = g.sixOut ? 0 : d - 1; } // pjäserna hemma är likadana: ett drag räcker
     else if (prog === GOAL) return;
     else { to = prog + d; if (to > GOAL) return; }
     if (to < GOAL && g.pieces[p].includes(to)) return;
@@ -51,7 +52,7 @@ export function legalMoves(g, p, d) {
 
 // Gör draget. Landar man på en motståndares pjäs knuffas den hem. Gången in mot mål är trygg.
 export function applyMove(g, p, i, d) {
-  const from = g.pieces[p][i], to = from === HOME ? 0 : from + d;
+  const from = g.pieces[p][i], to = from === HOME ? (g.sixOut ? 0 : d - 1) : from + d;
   g.pieces[p][i] = to;
   const knuffed = [];
   if (onTrack(to)) {
