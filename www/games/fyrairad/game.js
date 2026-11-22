@@ -434,11 +434,16 @@ function end(kind) {
     : kind === 'final' ? `${winner.name} vann${target > 1 ? ' hela spelet' : ''}!` : `${winner.name} vann omgången!`;
   $('#winText').textContent = kind === 'draw' ? 'Ingen fick fyra i rad. Ingen får poäng, vi spelar om.' : kind === 'final' ? `Grattis!${score}` : score.trim();
   $('#nextBtn').hidden = kind === 'final';
-  $('#againBtn').hidden = $('#menuBtn').hidden = kind !== 'final';
+  $('#againBtn').hidden = kind !== 'final';
+  $('#menuBtn').hidden = kind === 'round'; // vid lika och när spelet är slut går det också att gå till menyn
   const FLAG = ['#e53935', '#fbc02d', '#43a047', '#1e88e5', '#8e24aa', '#fb8c00'];
   $('#confetti').innerHTML = kind === 'draw' ? '' : Array.from({ length: kind === 'final' ? 28 : 12 }, (_, i) =>
     `<i style="left:${Math.random() * 100}%;background:${FLAG[i % 6]};animation-delay:${-Math.random() * 6}s;animation-duration:${4 + Math.random() * 4}s"></i>`).join('');
   $('#winPanel').hidden = false;
+  // Knapparna är gråa en sekund, så att ett oväntat tryck (när rutan dyker upp medan man trycker på brädet) inte startar en ny omgång av misstag.
+  const btns = document.querySelectorAll('#winPanel .btn');
+  btns.forEach(b => (b.disabled = true));
+  setTimeout(() => btns.forEach(b => (b.disabled = false)), 1000);
 }
 // Nästa omgång: den andra spelaren börjar.
 $('#nextBtn').onclick = () => { $('#winPanel').hidden = true; sfx.click(); starter = (starter + 1) % players.length; beginRound(); };
