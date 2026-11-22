@@ -38,6 +38,21 @@ if (process.argv.includes('--list')) {
   voices.forEach(v => console.log(`${v.name.padEnd(28)} ${v.voice_id}  ${v.labels?.gender ?? ''} ${v.labels?.accent ?? ''} ${v.labels?.age ?? ''}`));
   process.exit(0);
 }
+// Lägger de svenska rösterna från ElevenLabs bibliotek till kontot (en gång). Då väljs de automatiskt (namnen "SV ...").
+//   node scripts/make-voices-eleven.mjs --add-voices
+// Sedan: node scripts/make-voices-eleven.mjs --fyra --force   (gör om Fyra i rads röster med svenska röster)
+if (process.argv.includes('--add-voices')) {
+  const WANT = { 'SV Louise': 'kpTdKfohzvarfFPnwuHW', 'SV Olivia': 'cLAH1kXlkAivJHxCW601', 'SV Ola': 'ouhIFI5XkmBelRRcJe51' };
+  const shared = await api('/v1/shared-voices?language=sv&page_size=100&sort=trending').then(r => r.json());
+  for (const [name, id] of Object.entries(WANT)) {
+    if (voices.some(v => v.name === name)) { console.log('finns redan:', name); continue; }
+    const v = shared.voices?.find(x => x.voice_id === id);
+    if (!v) { console.log('hittade inte i biblioteket:', name); continue; }
+    const res = await api(`/v1/voices/add/${v.public_owner_id}/${id}`, { method: 'POST', body: JSON.stringify({ new_name: name }) });
+    console.log(res.ok ? 'tillagd:' : `misslyckades (${res.status}):`, name, res.ok ? '' : await res.text());
+  }
+  process.exit(0);
+}
 const SKIP_LIBRARY = process.argv.includes('--no-library');
 const pickVoice = role => {
   const v = ROLES[role].names.filter(n => !(SKIP_LIBRARY && n.startsWith('SV '))).map(n => voices.find(x => x.name.toLowerCase().startsWith(n.toLowerCase()))).find(Boolean);
@@ -49,7 +64,7 @@ console.log('Röster:', Object.entries(voiceOf).map(([r, id]) => `${r}=${voices.
 
 let used = 0;
 async function say(text, file, role, dir = OUT) {
-  if (existsSync(`${dir}/${file}.mp3`)) return;
+  if (!process.argv.includes('--force') && existsSync(`${dir}/${file}.mp3`)) return; // --force gör om även filer som finns
   const res = await api(`/v1/text-to-speech/${voiceOf[role]}?output_format=mp3_44100_64`, {
     method: 'POST', body: JSON.stringify({ text, model_id: MODEL, language_code: 'sv', voice_settings: ROLES[role].settings }),
   });
@@ -82,13 +97,13 @@ async function fyraRules() {
 async function fyraDice() {
   const dir = 'www/games/fyrairad/voice';
   mkdirSync(dir, { recursive: true });
-  const COLOR = { green: 'Grön.', red: 'Röd.', blue: 'Blå.', yellow: 'Gul.', white: 'Valfri rad.' };
-  const FIG = { fox: 'Räv.', owl: 'Uggla.', squirrel: 'Ekorre.', hedgehog: 'Igelkott.', hare: 'Hare.', bear: 'Björn.' };
+  const COLOR = { green: 'Grön rad.', red: 'Röd rad.', blue: 'Blå rad.', yellow: 'Gul rad.', white: 'Välj rad själv.' }; // hela ord i en svensk fras, så att rösten inte uttalar "gul" som engelska
+  const FIG = { fox: 'En räv.', owl: 'En uggla.', squirrel: 'En ekorre.', hedgehog: 'En igelkott.', hare: 'En hare.', bear: 'En björn.' };
   for (const [k, t] of Object.entries(COLOR)) await say(t, `c-${k}`, 'narrator', dir);
   for (const [k, t] of Object.entries(FIG)) await say(t, `f-${k}`, 'narrator', dir);
 }
 // Bara Fyra i rads röster (sparar gratiskvoten):  node scripts/make-voices-eleven.mjs --fyra
-if (process.argv.includes('--fyra')) { await fyraRules(); await fyraDice(); process.exit(0); }
+if (process.argv.includes('--fyra')) { if (!process.argv.includes('--no-rules')) await fyraRules(); await fyraDice(); process.exit(0); } // --no-rules: bara de korta tärningsreplikerna
 
 if (process.argv.includes('--all')) rmSync(OUT, { recursive: true, force: true });
 mkdirSync(OUT, { recursive: true });

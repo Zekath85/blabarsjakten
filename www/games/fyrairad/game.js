@@ -341,8 +341,8 @@ const sayDie = (file, text) => {
   // race: om en annan röst avbryter (t.ex. avbryt-frågan) blir inspelningen aldrig klar, och kön ska inte fastna.
   voiceChain = voiceChain.then(() => Promise.race([playClip(`voice/${file}.mp3`, text, undefined, 'dice'), wait(4000)]));
 };
-const sayColor = c => sayDie(`c-${c}`, COLOR_NAME[c].toLowerCase());
-const sayFig = f => sayDie(`f-${f}`, FIG_WORD[f]);
+const sayColor = c => sayDie(`c-${c}`, c === 'white' ? 'Välj rad själv' : `${COLOR_NAME[c].toLowerCase()} rad`);
+const sayFig = f => sayDie(`f-${f}`, `en ${FIG_WORD[f]}`);
 const sayRolled = r => { sayColor(r.color); sayFig(r.fig); };
 
 // En knapp: färgtärningen först, sedan bildtärningen (eller båda på en gång om "samtidigt" är på).
