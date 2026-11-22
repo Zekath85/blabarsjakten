@@ -1,6 +1,9 @@
 # Spelhörnan
 
-Spelportal för plattan. Spel: **Blåbärsjakten**, **Fyra i rad** och **Sand Spelet**.
+Spelportal för plattan. Spel: **Blåbärsjakten**, **Fyra i rad**, **Memory** och **Sand Spelet**.
+
+**Memory** (`www/games/memory/`): hitta par, 2–4 spelare eller en mot datorn (lätt, medel, svår; reglerna och datorns minne ligger i `logic.js`).
+Röster görs med `node scripts/make-voices-eleven.mjs --memory --no-library` (nyckeln ligger i `.env.local`).
 
 Spelet är en webbapp. Den ligger på GitHub Pages, sparas i plattan och funkar utan internet.
 När plattan har internet hämtar den nya versioner av sig självt. Nya versionen syns nästa gång appen öppnas.

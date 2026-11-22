@@ -199,3 +199,71 @@ import * as F from '../www/games/fyrairad/logic.js';
   const three2 = w([[0, 0, 2], [0, 1, 2], [0, 2, 2]]);
   assert.deepEqual(F.pickCell(three2, free, 0, 'hard', Math.random, 3), [0, 3], 'svår stoppar också spelare 3');
 }
+
+// ---------- Memory ----------
+import * as M from '../www/games/memory/logic.js';
+{
+  // Alla storlekar: jämnt antal, rätt antal par, varje bild exakt två gånger.
+  for (const size of Object.keys(M.SIZES)) for (let n = 1; n <= 4; n++) {
+    const g = M.createGame(size, n);
+    assert.equal(g.cards.length, M.SIZES[size].a * M.SIZES[size].b);
+    assert.equal(g.cards.length % 2, 0);
+    const count = {};
+    g.cards.forEach(f => (count[f] = (count[f] || 0) + 1));
+    assert.ok(Object.values(count).every(v => v === 2), 'varje bild två gånger');
+  }
+  assert.ok(M.FIGS.length >= M.pairsOf('large'), 'tillräckligt många bilder');
+
+  // Regler: par = behåll och vänd igen, annars nästa spelare.
+  const g = { cards: ['a', 'b', 'a', 'b'], owner: [null, null, null, null], flipped: [], current: 0, players: 2 };
+  assert.ok(M.flip(g, 0));
+  assert.equal(M.flip(g, 0), false, 'samma bricka två gånger går inte');
+  assert.equal(M.resolve(g), null, 'bara en bricka uppe');
+  assert.ok(M.flip(g, 1));
+  assert.equal(M.flip(g, 2), false, 'inte tre brickor');
+  let r = M.resolve(g);
+  assert.equal(r.match, false);
+  assert.equal(g.current, 1, 'inget par: nästa spelare');
+  assert.deepEqual(g.flipped, []);
+  M.flip(g, 1); M.flip(g, 3);
+  r = M.resolve(g);
+  assert.equal(r.match, true);
+  assert.equal(g.current, 1, 'par: samma spelare igen');
+  assert.deepEqual(g.owner, [null, 1, null, 1]);
+  assert.equal(M.flip(g, 1), false, 'tagen bricka går inte att vända');
+  assert.equal(M.isDone(g), false);
+  M.flip(g, 0); M.flip(g, 2); M.resolve(g);
+  assert.ok(M.isDone(g));
+  assert.deepEqual(M.scores(g), [0, 2]);
+  assert.deepEqual(M.winners(g), [1]);
+  assert.deepEqual(M.winners({ owner: [0, 0, 1, 1], players: 2 }), [0, 1], 'lika');
+
+  // Datorn: tar ett par den känner till, och spelar färdigt hela spel på alla nivåer.
+  const g2 = { cards: ['a', 'b', 'a', 'b'], owner: [null, null, null, null], flipped: [], current: 0, players: 2 };
+  assert.equal(M.botFirst(g2, { 0: 'a', 2: 'a' }) % 2, 0, 'känner paret: tar det');
+  g2.flipped = [0];
+  assert.equal(M.botSecond(g2, { 0: 'a', 2: 'a' }), 2, 'känner paret: tar andra brickan');
+  assert.notEqual(M.botSecond(g2, { 1: 'b', 0: 'a' }), 1, 'tar hellre en okänd bricka än en känd fel');
+  const play = (size, levels) => {
+    const g = M.createGame(size, levels.length);
+    const mems = levels.map(M.newMemory);
+    let turns = 0;
+    while (!M.isDone(g)) {
+      assert.ok(++turns < 2000, 'spelet tar slut');
+      const p = g.current, lvl = levels[p];
+      const see = i => mems.forEach((m, k) => M.remember(m, i, g.cards[i], levels[k]));
+      const a = M.botFirst(g, mems[p]); assert.ok(M.flip(g, a)); see(a);
+      const b = M.botSecond(g, mems[p]); assert.ok(M.flip(g, b), `${lvl}: tillåten bricka`); see(b);
+      const res = M.resolve(g);
+      if (res.match) mems.forEach(m => M.forget(m, res.a, res.b));
+    }
+    return M.scores(g);
+  };
+  for (const size of Object.keys(M.SIZES)) for (const lvl of M.LEVELS) {
+    for (let k = 0; k < 20; k++) assert.equal(play(size, [lvl, lvl]).reduce((s, v) => s + v, 0), M.pairsOf(size), 'alla par tas');
+  }
+  // Svår är bättre än lätt (flest par över många spel).
+  let hard = 0, easy = 0;
+  for (let k = 0; k < 300; k++) { const [e, h] = play('large', ['easy', 'hard']); easy += e; hard += h; }
+  assert.ok(hard > easy * 1.3, `svår slår lätt (${hard} mot ${easy})`);
+}

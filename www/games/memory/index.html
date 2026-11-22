@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="sv">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+  <title>Memory</title>
+  <link rel="stylesheet" href="../../shared/style.css">
+  <link rel="manifest" href="../../manifest.webmanifest">
+  <link rel="icon" href="../../icons/icon-192.png">
+  <meta name="theme-color" content="#15241d">
+  <script type="module" src="../../shared/pwa.js"></script>
+  <!-- Samma utseende som Blåbärsjakten och Fyra i rad: vi lånar stilarna (knappar, poängpiller, val) och lägger till brädet. -->
+  <link rel="stylesheet" href="../blabarsjakten/game.css">
+  <link rel="stylesheet" href="game.css">
+</head>
+<body>
+  <button class="icon-btn" id="backBtn" style="left:12px" aria-label="Till menyn">
+    <svg viewBox="0 0 40 40"><path d="M24 8 L12 20 L24 32" fill="none" stroke="#fff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </button>
+  <button class="icon-btn" id="soundBtn" style="right:12px" aria-label="Inställningar och ljud"></button>
+  <button class="icon-btn" id="rulesBtn" style="right:96px" aria-label="Så spelar man">
+    <svg viewBox="0 0 40 40"><circle cx="20" cy="20" r="15" fill="rgba(255,255,255,.18)" stroke="#fff" stroke-width="3"/><path d="M14.5 15.5 Q14.5 9.5 20.5 9.5 Q26.5 9.5 26.5 15 Q26.5 18.5 22.5 20.5 Q20.5 21.5 20.5 24.5" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/><circle cx="20.5" cy="30.5" r="2.6" fill="#fff"/></svg>
+  </button>
+
+  <!-- 1. Välj spelare -->
+  <section class="screen" id="setup">
+    <div class="setup-inner">
+      <h1 class="title">Memory</h1>
+      <div class="figures" id="figures"></div>
+      <h2>Hur många spelare?</h2>
+      <div class="counts" id="counts"></div>
+      <div class="names" id="names"></div>
+      <button class="btn green icon-right" id="toBoardBtn" data-icon="play">Välj spelplan</button>
+    </div>
+  </section>
+
+  <!-- 2. Välj storlek, färg, datorns nivå och antal omgångar. Sedan spelet. -->
+  <section class="screen" id="play" hidden>
+    <div class="scores" id="scores"></div>
+    <div class="board-wrap" id="boardWrap">
+      <div class="board" id="board"></div>
+    </div>
+    <footer class="bar" id="bar">
+      <div class="actions" id="previewActions">
+        <div class="sizes" id="sizes" aria-label="Hur många brickor"></div>
+        <div class="sizes" id="boards" aria-label="Färg"></div>
+        <div class="sizes" id="levels" aria-label="Hur svår datorn är"></div>
+        <div class="sizes" id="rounds" aria-label="Först till så många omgångar"></div>
+        <button class="btn green icon-right" id="startBtn" data-icon="play">Starta</button>
+      </div>
+    </footer>
+  </section>
+
+  <!-- Omgång klar, lika, eller någon vann hela spelet -->
+  <div class="overlay goal-overlay" id="winPanel" hidden>
+    <div class="confetti" id="confetti"></div>
+    <div class="goal-card">
+      <div class="goal-face" id="winFace"></div>
+      <h2 id="winTitle"></h2>
+      <p class="goal-total" id="winText"></p>
+      <div class="row">
+        <button class="btn green" id="nextBtn" data-icon="play" hidden>Nästa omgång</button>
+        <button class="btn green" id="againBtn" data-icon="refresh" hidden>Nytt spel</button>
+        <button class="btn blue" id="menuBtn" data-icon="home" hidden>Till menyn</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Figurskapare (samma som i Blåbärsjakten) -->
+  <div class="overlay" id="lookPanel" hidden>
+    <div class="panel look-panel">
+      <div class="look-preview" id="lookPreview"></div>
+      <div class="look-rows" id="lookRows"></div>
+      <button class="btn green look-done" id="lookDoneBtn">Klar!</button>
+    </div>
+  </div>
+
+  <!-- Så spelar man (öppnas av sig själv första gången) -->
+  <div class="overlay" id="rules" hidden>
+    <div class="panel">
+      <div class="rules-head">
+        <h2>Så spelar man Memory</h2>
+        <button class="btn blue round" id="readRulesBtn" data-icon="speaker" aria-label="Läs upp reglerna" title="Läs upp"></button>
+      </div>
+      <div id="rulesText">
+        <p><b>Målet:</b> hitta flest par. Ett par är två brickor med samma bild.</p>
+        <p><b>Din tur:</b> Tryck på en bricka. Den vänder sig. Tryck sedan på en bricka till.</p>
+        <p><b>Blev det ett par?</b> Då får du behålla paret och vända två brickor till.</p>
+        <p><b>Blev det inte ett par?</b> Då vänds brickorna tillbaka. Nu är det nästa spelares tur. Försök komma ihåg var bilderna ligger!</p>
+        <p><b>Vem vinner?</b> När alla par är tagna vinner den som har flest par.</p>
+        <p><b>Omgångar:</b> Du väljer hur många omgångar som behövs för att vinna spelet.</p>
+        <p><b>Mot datorn:</b> Välj en nivå: lätt, medel eller svår. Datorn kommer ihåg olika mycket.</p>
+      </div>
+      <div class="row">
+        <button class="btn green" id="closeRulesBtn" data-icon="check">Nu kör vi!</button>
+      </div>
+      <p class="credits">Röst: ElevenLabs (elevenlabs.io)</p>
+    </div>
+  </div>
+
+  <!-- Inställningar: musik, låtar, ljud och berättaren -->
+  <div class="overlay" id="soundPanel" hidden>
+    <div class="panel">
+      <h2>Inställningar</h2>
+      <h3 class="panel-sub">Musik</h3>
+      <label class="toggle"><input type="checkbox" data-pref="music"><span></span>Musik</label>
+      <div class="songs" id="songList"></div>
+      <label class="volume" aria-label="Musikens volym"><span data-icon="speaker"></span><input type="range" id="musicVol" min="0" max="1" step="0.05"></label>
+      <h3 class="panel-sub">Ljud</h3>
+      <label class="toggle"><input type="checkbox" data-pref="sfx"><span></span>Ljudeffekter</label>
+      <label class="toggle"><input type="checkbox" data-pref="memVoice"><span></span>Berättaren säger vad brickorna visar</label>
+      <label class="toggle"><input type="checkbox" data-pref="calm"><span></span>Lugnt läge (färre rörelser, bra för äldre plattor)</label>
+      <div class="row"><button class="btn green" id="closeSoundBtn">Klar</button></div>
+    </div>
+  </div>
+
+  <script type="module" src="game.js"></script>
+</body>
+</html>
