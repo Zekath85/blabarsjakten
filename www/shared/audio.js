@@ -2,7 +2,7 @@
 // Korten och berättarens repliker är inspelade (mp3). Saknas en fil används plattans röst (speechSynthesis).
 
 // Inställningar: läs upp kort, berättaren, lugnare tal, ljudeffekter, lugnt läge (färre rörelser).
-const DEFAULTS = { cards: true, guide: true, slow: false, sfx: true, calm: false, music: true, musicVol: 0.5, song: 'theme' };
+const DEFAULTS = { cards: true, guide: true, dice: true, slow: false, sfx: true, calm: false, music: true, musicVol: 0.5, song: 'theme' };
 let prefs = { ...DEFAULTS };
 try { prefs = { ...DEFAULTS, ...JSON.parse(localStorage.getItem('prefs') || '{}') }; } catch {}
 const listeners = [];

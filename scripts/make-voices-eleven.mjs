@@ -77,8 +77,18 @@ async function fyraRules() {
   const html = readFileSync('www/games/fyrairad/index.html', 'utf8');
   await say(html.split('id="rulesText">')[1].split('</div>')[0].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim(), 'rules', 'narrator', dir);
 }
-// Bara reglerna för Fyra i rad (sparar gratiskvoten):  node scripts/make-voices-eleven.mjs --fyra
-if (process.argv.includes('--fyra')) { await fyraRules(); process.exit(0); }
+// Fyra i rad: korta repliker när tärningarna har landat, "blå" + "hare" (färgtärningen först, sedan bildtärningen).
+// Filerna heter c-<färg>.mp3 och f-<figur>.mp3 i www/games/fyrairad/voice. Lite text, lite av gratiskvoten.
+async function fyraDice() {
+  const dir = 'www/games/fyrairad/voice';
+  mkdirSync(dir, { recursive: true });
+  const COLOR = { green: 'Grön.', red: 'Röd.', blue: 'Blå.', yellow: 'Gul.', white: 'Valfri rad.' };
+  const FIG = { fox: 'Räv.', owl: 'Uggla.', squirrel: 'Ekorre.', hedgehog: 'Igelkott.', hare: 'Hare.', bear: 'Björn.' };
+  for (const [k, t] of Object.entries(COLOR)) await say(t, `c-${k}`, 'narrator', dir);
+  for (const [k, t] of Object.entries(FIG)) await say(t, `f-${k}`, 'narrator', dir);
+}
+// Bara Fyra i rads röster (sparar gratiskvoten):  node scripts/make-voices-eleven.mjs --fyra
+if (process.argv.includes('--fyra')) { await fyraRules(); await fyraDice(); process.exit(0); }
 
 if (process.argv.includes('--all')) rmSync(OUT, { recursive: true, force: true });
 mkdirSync(OUT, { recursive: true });
@@ -87,6 +97,7 @@ for (const [deck, cards] of Object.entries(DECKS)) for (const [i, c] of cards.en
 const html = readFileSync('www/games/blabarsjakten/index.html', 'utf8');
 await say(html.split('id="rulesText">')[1].split('</div>')[0].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim(), 'rules', 'narrator');
 await fyraRules();
+await fyraDice();
 const src = readFileSync('scripts/make-voices.mjs', 'utf8');
 const PLACE = ['första', 'andra', 'tredje', 'fjärde'], BONUS = ['fem blåbärskorgar', 'tre blåbärskorgar', 'två blåbärskorgar', 'en blåbärskorg'];
 const lines = Object.fromEntries([...src.matchAll(/^\s+(\w+): '([^']+)',$/gm)].map(m => [m[1], m[2]]));

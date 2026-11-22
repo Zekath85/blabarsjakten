@@ -36,9 +36,11 @@ const figure = (p, headOnly = true) => (p.bot ? robot(p.color, headOnly) : avata
 
 // state: setup, preview (välja spelplan), roll1 (färgtärningen), roll2 (bildtärningen), busy, place, over
 let players = lineup(), cells = F.emptyBoard(), current = 0, state = 'setup', allowed = [], rolled = {};
+let fresh = null; // rutan som just fick ett kort: bara det kortet "faller in" (annars blinkar alla kort vid varje ritning)
 let wins = [], starter = 0, matchDone = false; // matchDone: hela spelet är slut (då behövs ingen fråga när man går till menyn)
 const layout = () => F.LAYOUTS[board];
-const bothDice = () => !!settings.get('bothDice');
+// På tablet och dator slås båda tärningarna samtidigt (en knapp per tärning), om man inte har stängt av det. På mobil är det alltid en knapp och en tärning i taget.
+const bothDice = () => tablet() && settings.get('bothDice') !== false;
 
 // ---------- 1. Välj spelare ----------
 function show(id) { document.querySelectorAll('.screen').forEach(s => (s.hidden = s.id !== id)); }
@@ -153,11 +155,12 @@ $('#previewActions').onclick = e => {
 
 // ---------- Brädet: 4 rader (färger) x 4 kolumner (figurer) ----------
 function fit() { // rutorna är runda: räkna ut bredden så att hela brädet får plats (ramar och luft: 74px bredd, 104px höjd)
-  // På tablet sparas en remsa till vänster om brädet åt tärningarna, som ligger där tills kortet är lagt.
-  const lane = tablet() && !$('#deck').hidden ? 140 : 0;
-  $('#boardWrap').style.paddingLeft = lane + 'px';
+  // Brädet ligger alltid mitt på skärmen. På tablet och dator sparas en lika bred remsa på båda sidor, så att tärningarna får plats
+  // till vänster om brädet utan att brädet flyttas åt sidan.
+  const lane = tablet() && !$('#deck').hidden ? 110 : 0;
+  $('#boardWrap').style.paddingLeft = $('#boardWrap').style.paddingRight = lane + 'px';
   const w = $('#boardWrap').getBoundingClientRect();
-  const cell = Math.max(24, Math.min((w.width - lane - 24 - 74) / 4, (w.height - 24 - 104) / 4));
+  const cell = Math.max(24, Math.min((w.width - 2 * lane - 24 - 74) / 4, (w.height - 24 - 104) / 4));
   $('#board').style.setProperty('--bw', 4 * cell + 74 + 'px');
 }
 addEventListener('resize', () => !$('#play').hidden && fit());
@@ -171,7 +174,7 @@ function renderBoard() {
       const v = cells[r][c];
       // Lagt kort: blåbärskorg med kant i spelarens färg, och spelarens ansikte i hörnet, så man ser direkt vems det är.
       return `<div class="cell ${hint && hint !== row.color ? 'dim' : ''}" data-r="${r}" data-c="${c}">${FIG_ART[fig]}` +
-        (v !== null ? `<span class="coin p${v}" style="--c:${players[v].color}">${ART.basket}<span class="who">${figure(players[v])}</span></span>` : '') + '</div>';
+        (v !== null ? `<span class="coin p${v}${fresh && fresh[0] === r && fresh[1] === c ? " new" : ""}" style="--c:${players[v].color}">${ART.basket}<span class="who">${figure(players[v])}</span></span>` : '') + '</div>';
     }).join('')}</div>`).join('');
   $('#board').classList.toggle('placing', state === 'place' || !!hint);
   if (state !== 'place') return;
@@ -230,10 +233,10 @@ function renderDeck() {
 const DIE_BLUE = '<svg class="icon" viewBox="0 0 40 40" aria-hidden="true"><rect x="5" y="5" width="30" height="30" rx="8" fill="#1e88e5" stroke="currentColor" stroke-width="3"/><path d="M11 14 Q14 10 20 10" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" opacity=".7"/></svg>';
 const DIE_OWL = '<svg class="icon" viewBox="0 0 40 40" aria-hidden="true"><rect x="5" y="5" width="30" height="30" rx="8" fill="#fff" stroke="currentColor" stroke-width="3"/>' + ART.owl.replace('<svg', '<svg x="8" y="8" width="24" height="24"') + '</svg>';
 
-// Två knappar finns bara på tablet och bara när båda tärningarna slås samtidigt: vänster knapp slår figurtärningen, höger slår
+// Två knappar finns på tablet och dator (inte mobil) och bara när båda tärningarna slås samtidigt: vänster knapp slår figurtärningen, höger slår
 // färgtärningen, med varsitt finger. På mobil slås båda tärningarna med en knapp.
-const tablet = () => Math.min(innerWidth, innerHeight) >= 600;
-const twoButtons = () => bothDice() && tablet() && !isBot();
+const tablet = () => Math.min(innerWidth, innerHeight) >= 560; // allt utom mobil (tablet och dator)
+const twoButtons = () => bothDice() && !isBot();
 const thrown = [false, false];       // vilka tärningar som redan är kastade (två knappar)
 const pending = [null, null];        // deras siffror, tills båda har landat
 const BTN = ['#actionBtn', '#actionBtn2']; // plats 0 = höger, plats 1 = vänster
@@ -280,13 +283,32 @@ BTN.forEach((sel, slot) => {
     updateAim(slot, e);
     aims[slot] = null;
     $(AIMS[slot].svg).setAttribute('hidden', '');
-    const tap = a.power < 0.08; // ett snabbt tryck = lagom kast
-    const t = tap ? { power: 0.5, dx: (Math.random() - 0.5) * 0.4, dy: -1, x: a.x, y: a.y } : { power: a.power, dx: a.dx, dy: a.dy, x: a.x, y: a.y };
+    // Man måste dra ut för att kasta. Släpper man på knappen igen (eller drar nästan ingenting) avbryts kastet.
+    const r = b.getBoundingClientRect();
+    const onButton = e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom;
+    if (onButton || a.power < 0.1) { cancelAim(a); if (a.power < 0.1) hint('Dra tärningen uppåt och släpp!'); return; }
+    const t = { power: a.power, dx: a.dx, dy: a.dy, x: a.x, y: a.y };
     if (twoButtons()) rollSingle(a.k, t); else roll(t);
   });
-  b.addEventListener('pointercancel', () => { aims[slot] = null; $(AIMS[slot].svg).setAttribute('hidden', ''); if (!live.size) $('#diceZone').hidden = true; });
+  b.addEventListener('pointercancel', () => { const a = aims[slot]; aims[slot] = null; $(AIMS[slot].svg).setAttribute('hidden', ''); if (a) cancelAim(a); });
 });
 
+// Kastet avbröts: tärningen som siktades med försvinner (om den inte redan är i spel) och tärningsytan stängs om inget är kvar.
+function cancelAim(a) {
+  if (!live.has(a.k) && !aims.some(o => o && o.k === a.k)) {
+    $(DIE[a.k].wrap).style.display = $(DIE[a.k].shadow).style.display = 'none';
+  }
+  if (!live.size && !aims.some(Boolean)) $('#diceZone').hidden = true;
+}
+// Kort tips i nedre raden (bara om raden är tom), så man förstår att man ska dra.
+let hintTimer;
+function hint(text) {
+  const t = $('#tray');
+  if (t.innerHTML && !t.querySelector('.hint-msg')) return;
+  t.innerHTML = `<div class="rolled hint-msg">${text}</div>`;
+  clearTimeout(hintTimer);
+  hintTimer = setTimeout(() => t.querySelector('.hint-msg') && (t.innerHTML = ''), 2200);
+}
 function updateAim(slot, e) {
   const aim = aims[slot], { line: l, dot: d } = AIMS[slot];
   const vx = e.clientX - aim.x, vy = e.clientY - aim.y, len = Math.hypot(vx, vy);
@@ -311,6 +333,18 @@ function renderRolled(extra = '') {
       `<span>${[rolled.color && COLOR_NAME[rolled.color], rolled.fig && FIG_NAME[rolled.fig]].filter(Boolean).join(' + ')}</span></div>` : '') + extra;
 }
 
+// Berättaren säger vad tärningarna visar: "blå", sedan "hare". Det går att slå av i inställningarna (dice).
+// Replikerna ställs i kö så att de aldrig pratar i munnen på varandra. Spelet väntar inte på rösten.
+const FIG_WORD = { fox: 'räv', owl: 'uggla', squirrel: 'ekorre', hedgehog: 'igelkott', hare: 'hare', bear: 'björn' };
+let voiceChain = Promise.resolve();
+const sayDie = (file, text) => {
+  // race: om en annan röst avbryter (t.ex. avbryt-frågan) blir inspelningen aldrig klar, och kön ska inte fastna.
+  voiceChain = voiceChain.then(() => Promise.race([playClip(`voice/${file}.mp3`, text, undefined, 'dice'), wait(4000)]));
+};
+const sayColor = c => sayDie(`c-${c}`, COLOR_NAME[c].toLowerCase());
+const sayFig = f => sayDie(`f-${f}`, FIG_WORD[f]);
+const sayRolled = r => { sayColor(r.color); sayFig(r.fig); };
+
 // En knapp: färgtärningen först, sedan bildtärningen (eller båda på en gång om "samtidigt" är på).
 async function roll(t) {
   const both = bothDice(), k = dieIndex();
@@ -319,14 +353,15 @@ async function roll(t) {
   const ns = both ? [F.rollDie(), F.rollDie()] : [F.rollDie()];
   await throwDice(both ? [0, 1] : [k], ns, t);
   await settleDice();
-  if (both) rolled = { color: F.DIE_COLOR[ns[0] - 1], fig: F.DIE_FIG[ns[1] - 1] };
+  if (both) { rolled = { color: F.DIE_COLOR[ns[0] - 1], fig: F.DIE_FIG[ns[1] - 1] }; sayRolled(rolled); }
   else if (k === 0) { // färgtärningen klar: nu bildtärningen
     rolled = { color: F.DIE_COLOR[ns[0] - 1] };
+    sayColor(rolled.color);
     state = 'roll2';
     renderBoard(); renderRolled(); setButton(); sfx.good();
     if (isBot()) botThrow();
     return;
-  } else rolled.fig = F.DIE_FIG[ns[0] - 1];
+  } else { rolled.fig = F.DIE_FIG[ns[0] - 1]; sayFig(rolled.fig); }
   return resolveRoll();
 }
 // Två knappar (tablet): varje finger kastar sin tärning. Tärningarna kan flyga samtidigt. När båda har landat är kastet klart.
@@ -340,6 +375,7 @@ async function rollSingle(k, t) {
   if (pending[0] === null || pending[1] === null) return; // väntar på den andra tärningen
   await settleDice();
   rolled = { color: F.DIE_COLOR[pending[0] - 1], fig: F.DIE_FIG[pending[1] - 1] };
+  sayRolled(rolled);
   return resolveRoll();
 }
 
@@ -386,6 +422,16 @@ function moveGhost(e) {
   cellAt(e)?.classList.add('over');
 }
 addEventListener('pointermove', e => ghost && moveGhost(e));
+// Avbryter plattan draget (t.ex. en systemgest) kommer pointercancel i stället för pointerup. Då ska det dragna kortet inte bli kvar
+// på skärmen (det syntes som ett flimrande kort längst ner till vänster), utan gå tillbaka till högen.
+const dropGhost = () => {
+  if (!ghost) return;
+  ghost.remove(); ghost = null;
+  document.querySelectorAll('.cell.over').forEach(c => c.classList.remove('over'));
+  $('#token')?.classList.remove('used');
+};
+addEventListener('pointercancel', dropGhost);
+addEventListener('blur', dropGhost);
 addEventListener('pointerup', e => {
   if (!ghost) return;
   const cell = cellAt(e);
@@ -400,8 +446,9 @@ async function place(r, c) {
   state = 'busy';
   cells[r][c] = current;
   clearDice(); // kortet är lagt: tärningarna får lämna spelplanen
+  fresh = [r, c];
   allowed = [];
-  renderBoard(); renderScores(); renderRolled(); setButton();
+  renderBoard(); fresh = null; renderScores(); renderRolled(); setButton();
   sfx.land();
   sfx.figure(layout()[r].figs[c]); // varje figur har sitt eget lilla ljud
   const line = F.winLine(cells, r, c);
@@ -456,7 +503,7 @@ const FACE = { 1: [0, 0], 6: [0, 180], 3: [0, -90], 4: [0, 90], 5: [-90, 0], 2: 
 // Vit sida: helt vit (inga prickar eller färger) = "välj själv".
 const WHITE_FACE = '';
 $('#cube').innerHTML = F.DIE_COLOR.map((col, i) =>
-  `<div class="face fc f${i + 1}" style="--c:${F.COLOR_HEX[col]}">${col === 'white' ? WHITE_FACE : ''}</div>`).join('');
+  `<div class="face fc col f${i + 1} ${col}" style="--c:${F.COLOR_HEX[col]}"></div>`).join('');
 $('#cube2').innerHTML = F.DIE_FIG.map((fig, i) =>
   `<div class="face fc fig f${i + 1}" style="--c:#fbf1d9">${FIG_ART[fig]}</div>`).join('');
 const DICE = 96, DT = 1 / 60;
@@ -470,8 +517,9 @@ function showDiceAt(ks, x, y) { // tärningarna i ks syns, och de som redan är 
   zone.hidden = false;
   if (!live.size) { zone.classList.remove('landed', 'flying'); zone.classList.add('aiming'); }
   DIE.forEach((d, i) => {
-    $(d.wrap).style.display = ks.includes(i) || live.has(i) ? '' : 'none';
-    $(d.shadow).style.display = ks.includes(i) || (live.has(i) && !parked.has(i)) ? '' : 'none';
+    const aimed = aims.some(a => a && a.k === i); // tärningen någon just siktar med (två fingrar kan sikta samtidigt)
+    $(d.wrap).style.display = ks.includes(i) || live.has(i) || aimed ? '' : 'none';
+    $(d.shadow).style.display = ks.includes(i) || aimed || (live.has(i) && !parked.has(i)) ? '' : 'none';
   });
   ks.forEach(k => { $(DIE[k].wrap).style.transition = ''; parked.delete(k); placeDice(k, x, y, 0); });
 }
@@ -628,7 +676,8 @@ function closeSoundPanel() {
 $('#soundBtn').onclick = () => {
   if (!$('#soundPanel').hidden) return closeSoundPanel();
   document.body.classList.add('sound-open');
-  document.querySelectorAll('[data-pref]').forEach(cb => (cb.checked = !!settings.get(cb.dataset.pref)));
+  document.querySelectorAll('[data-pref]').forEach(cb => (cb.checked = cb.dataset.pref === 'bothDice' ? bothDice() : !!settings.get(cb.dataset.pref)));
+  $('#bothDiceRow').hidden = !tablet(); // valet finns inte på mobil
   $('#musicVol').value = settings.get('musicVol');
   renderSongs();
   $('#soundPanel').hidden = false;

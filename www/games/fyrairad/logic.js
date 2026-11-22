@@ -5,7 +5,9 @@
 export const FIGS = ['fox', 'owl', 'squirrel', 'hedgehog', 'hare', 'bear'];
 export const COLOR_HEX = { green: '#43a047', red: '#e53935', blue: '#1e88e5', yellow: '#fbc02d', white: '#fffdf5' };
 export const ROWS = 4, COLS = 4;
-export const DIE_COLOR = ['green', 'red', 'blue', 'yellow', 'white', 'white']; // vitt = välj rad själv
+// Kubens sidor räknas 1-6 och sida 1 och 6, 2 och 5, 3 och 4 är varandras motsatser (summan av indexen är 5).
+// De två vita sidorna ligger därför mitt emot varandra, en uppe och en under.
+export const DIE_COLOR = ['white', 'green', 'red', 'blue', 'yellow', 'white']; // vitt = välj rad själv
 export const DIE_FIG = FIGS;                                                  // sex sidor, en per figur
 export const rollDie = (rnd = Math.random) => 1 + Math.floor(rnd() * 6);
 
