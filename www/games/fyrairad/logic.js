@@ -1,20 +1,33 @@
-// Reglerna i Fyra i rad. Ren logik, inga bilder. Testas i test/logic.test.js.
-// Brädet: 4 kolumner (grön, röd, blå, gul) och 5 rader. cells[rad][kolumn] = spelarens nummer eller null.
-export const COLS = ['green', 'red', 'blue', 'yellow'];
+// Reglerna i Fyra i rad (som i Bamse 4 i rad). Ren logik, inga bilder. Testas i test/logic.test.js.
+// Brädet: 4 rader, var och en med en färg, och 5 kolumner med figurer. cells[rad][kolumn] = spelarens nummer eller null.
+// Färgtärningen pekar ut en rad. Bildtärningen visar figuren man ska hitta i den raden.
+export const FIGS = ['fox', 'owl', 'squirrel', 'hedgehog', 'hare'];
 export const COLOR_HEX = { green: '#43a047', red: '#e53935', blue: '#1e88e5', yellow: '#fbc02d', white: '#fffdf5' };
-export const ROWS = 5;
-// Tärningens sex sidor. Vit finns två gånger (fri plats).
-export const DIE = ['green', 'red', 'blue', 'yellow', 'white', 'white'];
+export const ROWS = 4, COLS = FIGS.length;
+export const DIE_COLOR = ['green', 'red', 'blue', 'yellow', 'white', 'white']; // vitt = välj rad själv
+export const DIE_FIG = [...FIGS, 'any'];                                      // stjärna = välj figur själv
 export const rollDie = (rnd = Math.random) => 1 + Math.floor(rnd() * 6);
 
-export const emptyBoard = () => Array.from({ length: ROWS }, () => Array(COLS.length).fill(null));
+// Fyra spelplaner. Varje rad har en färg och alla fem figurerna i egen ordning.
+const rot = (a, n) => a.map((_, i) => a[(i + n) % a.length]);
+const board = (colors, order, shifts) => colors.map((color, r) => ({ color, figs: rot(order, shifts[r]) }));
+export const LAYOUTS = {
+  blue:   board(['green', 'red', 'blue', 'yellow'], ['fox', 'owl', 'squirrel', 'hedgehog', 'hare'], [0, 2, 4, 1]),
+  green:  board(['red', 'yellow', 'green', 'blue'], ['hare', 'hedgehog', 'fox', 'squirrel', 'owl'], [3, 0, 2, 4]),
+  yellow: board(['blue', 'green', 'yellow', 'red'], ['owl', 'hare', 'hedgehog', 'fox', 'squirrel'], [1, 4, 0, 3]),
+  red:    board(['yellow', 'blue', 'red', 'green'], ['squirrel', 'fox', 'hare', 'owl', 'hedgehog'], [2, 3, 1, 0]),
+};
 
-// Lediga rutor för en färg. Vit, eller en full kolumn: välj vilken ledig ruta som helst.
-export function legalCells(cells, color) {
-  const free = [];
-  cells.forEach((row, r) => row.forEach((v, c) => v === null && free.push([r, c])));
-  const inCol = free.filter(([, c]) => COLS[c] === color);
-  return color === 'white' || !inCol.length ? free : inCol;
+export const emptyBoard = () => Array.from({ length: ROWS }, () => Array(COLS).fill(null));
+
+// Lediga rutor som passar tärningarna. Vitt = vilken rad som helst, stjärna = vilken figur som helst.
+// Finns ingen ledig ruta som passar går turen vidare (tom lista).
+export function legalCells(cells, layout, color, fig) {
+  const hit = [];
+  layout.forEach((row, r) => row.figs.forEach((f, c) => {
+    if (cells[r][c] === null && (color === 'white' || row.color === color) && (fig === 'any' || f === fig)) hit.push([r, c]);
+  }));
+  return hit;
 }
 
 // Fyra i rad som går genom (r, c): ger de fyra rutorna, annars null.

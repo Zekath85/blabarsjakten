@@ -30,7 +30,7 @@
       <h2>Hur många spelare?</h2>
       <div class="counts" id="counts"></div>
       <div class="names" id="names"></div>
-      <button class="btn green icon-right" id="startBtn" data-icon="play">Starta</button>
+      <button class="btn green icon-right" id="toBoardBtn" data-icon="play">Välj spelplan</button>
     </div>
   </section>
 
@@ -43,6 +43,10 @@
     </div>
     <footer class="bar">
       <div class="tray" id="tray"></div>
+      <div class="actions" id="previewActions">
+        <div class="sizes" id="boards" aria-label="Spelplan"></div>
+        <button class="btn green icon-right" id="startBtn" data-icon="play">Starta</button>
+      </div>
       <button class="btn action" id="actionBtn"></button>
     </footer>
   </section>
@@ -66,8 +70,9 @@
     <div class="panel">
       <h2>Så spelar man</h2>
       <p>Man vill få fyra egna korgar i rad: åt sidan, uppåt eller snett.</p>
-      <p>Slå tärningen. Den visar en färg: grön, röd, blå eller gul. Då lägger du din korg i den färgens kolumn.</p>
-      <p>Visar tärningen vitt får du välja vilken ruta du vill. Är kolumnen full får du också välja fritt.</p>
+      <p>Slå först färgtärningen. Den pekar ut en rad: grön, röd, blå eller gul. Slå sedan bildtärningen. Den visar vilken figur du ska hitta i raden.</p>
+      <p>Lägg din korg på figuren. Visar färgtärningen vitt väljer du rad själv. Visar bildtärningen stjärnan väljer du figur själv.</p>
+      <p>Är figurens ruta redan tagen går turen vidare.</p>
       <p>Dra korgen från botten till en ruta som lyser. Du kan också trycka på rutan.</p>
       <div class="row"><button class="btn green" id="closeRulesBtn">Stäng</button></div>
     </div>
@@ -77,7 +82,9 @@
   <div class="dice-layer" id="diceZone" hidden>
     <svg class="aim" id="aim" hidden><line id="aimLine"/><circle id="aimDot" r="10"/></svg>
     <div class="dice-shadow" id="diceShadow"></div>
+    <div class="dice-shadow" id="diceShadow2"></div>
     <div class="dice-wrap" id="diceWrap"><div class="dice-pop"><div class="cube" id="cube"></div></div></div>
+    <div class="dice-wrap" id="diceWrap2"><div class="dice-pop"><div class="cube" id="cube2"></div></div></div>
     <div class="sparks" id="sparks"></div>
   </div>
 

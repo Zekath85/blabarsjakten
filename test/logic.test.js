@@ -157,17 +157,29 @@ console.log('OK');
 import * as F from '../www/games/fyrairad/logic.js';
 {
   const b = F.emptyBoard();
-  assert.equal(F.legalCells(b, 'red').length, F.ROWS);
-  assert.ok(F.legalCells(b, 'red').every(([, c]) => c === 1));
-  assert.equal(F.legalCells(b, 'white').length, F.ROWS * 4);
-  b.forEach(row => (row[1] = 0)); // röd kolumn full: då får man välja fritt
-  assert.equal(F.legalCells(b, 'red').length, F.ROWS * 3);
-  assert.ok(F.DIE.includes('white') && ['green', 'red', 'blue', 'yellow'].every(c => F.DIE.includes(c)));
-  const w = (rows) => { const c = F.emptyBoard(); rows.forEach(([r, k, p]) => (c[r][k] = p)); return c; };
+  assert.equal([b.length, b[0].length].join('x'), '4x5', '4 rader, 5 kolumner');
+  // Alla fyra spelplaner: varje rad har alla fem figurer, och alla fyra färger finns en gång.
+  for (const lay of Object.values(F.LAYOUTS)) {
+    lay.forEach(row => assert.deepEqual([...row.figs].sort(), [...F.FIGS].sort()));
+    assert.deepEqual(lay.map(r => r.color).sort(), ['blue', 'green', 'red', 'yellow']);
+  }
+  const L = F.LAYOUTS.blue;
+  assert.notDeepEqual(F.LAYOUTS.blue, F.LAYOUTS.green, 'spelplanerna är olika');
+  assert.equal(F.legalCells(b, L, 'red', 'owl').length, 1, 'färg + figur = en ruta');
+  assert.equal(F.legalCells(b, L, 'red', 'any').length, F.COLS, 'valfri figur: hela raden');
+  assert.equal(F.legalCells(b, L, 'white', 'fox').length, F.ROWS, 'vitt: figuren i alla rader');
+  assert.equal(F.legalCells(b, L, 'white', 'any').length, F.ROWS * F.COLS, 'vitt + stjärna: allt');
+  const [[r0, c0]] = F.legalCells(b, L, 'red', 'owl');
+  b[r0][c0] = 0;
+  assert.equal(F.legalCells(b, L, 'red', 'owl').length, 0, 'rutan är tagen: turen går vidare');
+  assert.ok(F.DIE_COLOR.includes('white') && L.every(r => F.DIE_COLOR.includes(r.color)));
+  assert.ok(F.FIGS.every(f => F.DIE_FIG.includes(f)) && F.DIE_FIG.includes('any'));
+  const w = rows => { const c = F.emptyBoard(); rows.forEach(([r, k, p]) => (c[r][k] = p)); return c; };
   assert.ok(F.winLine(w([[2, 0, 0], [2, 1, 0], [2, 2, 0], [2, 3, 0]]), 2, 1), 'vågrätt');
-  assert.ok(F.winLine(w([[1, 2, 1], [2, 2, 1], [3, 2, 1], [4, 2, 1]]), 3, 2), 'lodrätt');
+  assert.ok(F.winLine(w([[2, 4, 0], [2, 1, 0], [2, 2, 0], [2, 3, 0]]), 2, 4), 'vågrätt, höger kant');
+  assert.ok(F.winLine(w([[0, 2, 1], [1, 2, 1], [2, 2, 1], [3, 2, 1]]), 2, 2), 'lodrätt');
   assert.ok(F.winLine(w([[0, 0, 0], [1, 1, 0], [2, 2, 0], [3, 3, 0]]), 0, 0), 'diagonalt ner');
-  assert.ok(F.winLine(w([[1, 0, 1], [2, 1, 1], [3, 2, 1], [4, 3, 1]]), 4, 3), 'diagonalt ner (rad 1)');
+  assert.ok(F.winLine(w([[0, 1, 1], [1, 2, 1], [2, 3, 1], [3, 4, 1]]), 3, 4), 'diagonalt ner (höger)');
   assert.ok(F.winLine(w([[0, 3, 1], [1, 2, 1], [2, 1, 1], [3, 0, 1]]), 2, 1), 'diagonalt upp');
   assert.equal(F.winLine(w([[2, 0, 0], [2, 1, 0], [2, 2, 1], [2, 3, 0]]), 2, 1), null, 'tre räcker inte');
   assert.equal(F.isFull(F.emptyBoard()), false);
