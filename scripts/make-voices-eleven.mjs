@@ -63,10 +63,11 @@ const voiceOf = Object.fromEntries(Object.keys(ROLES).map(r => [r, pickVoice(r)]
 console.log('Röster:', Object.entries(voiceOf).map(([r, id]) => `${r}=${voices.find(v => v.voice_id === id).name}`).join(', '));
 
 let used = 0;
-async function say(text, file, role, dir = OUT) {
+async function say(text, file, role, dir = OUT, opt = {}) { // opt: { model, voice } byter modell och röst för just det klippet
   if (!process.argv.includes('--force') && existsSync(`${dir}/${file}.mp3`)) return; // --force gör om även filer som finns
-  const res = await api(`/v1/text-to-speech/${voiceOf[role]}?output_format=mp3_44100_64`, {
-    method: 'POST', body: JSON.stringify({ text, model_id: MODEL, language_code: 'sv', voice_settings: ROLES[role].settings }),
+  const voiceId = opt.voice ? voices.find(v => v.name.toLowerCase().startsWith(opt.voice.toLowerCase())).voice_id : voiceOf[role];
+  const res = await api(`/v1/text-to-speech/${voiceId}?output_format=mp3_44100_64`, {
+    method: 'POST', body: JSON.stringify({ text, model_id: opt.model || MODEL, language_code: 'sv', voice_settings: opt.model ? { stability: 0.6, similarity_boost: 0.85, style: 0.2 } : ROLES[role].settings }),
   });
   if (!res.ok) throw new Error(`${file}: ${res.status} ${await res.text()}`);
   writeFileSync(`${dir}/${file}.mp3`, Buffer.from(await res.arrayBuffer()));
@@ -99,8 +100,11 @@ async function fyraDice() {
   mkdirSync(dir, { recursive: true });
   const COLOR = { green: 'Grön rad.', red: 'Röd rad.', blue: 'Blå rad.', yellow: 'Gul rad.', white: 'Välj rad själv.' }; // hela ord i en svensk fras, så att rösten inte uttalar "gul" som engelska
   const FIG = { fox: 'En räv.', owl: 'En uggla.', squirrel: 'En ekorre.', hedgehog: 'En igelkott.', hare: 'En hare.', bear: 'En björn.' };
-  for (const [k, t] of Object.entries(COLOR)) await say(t, `c-${k}`, 'narrator', dir);
-  for (const [k, t] of Object.entries(FIG)) await say(t, `f-${k}`, 'narrator', dir);
+  // Valda efter provlyssning: vissa ord låter svenskare med en annan röst eller modell (annars berättaren, Sarah).
+  const STYLE = { 'c-yellow': ['eleven_turbo_v2_5', 'Sarah'], 'c-green': ['eleven_v4', 'Jessica'], 'f-squirrel': ['eleven_v4', 'Jessica'], 'f-hedgehog': ['eleven_turbo_v2_5', 'Sarah'], 'f-hare': ['eleven_turbo_v2_5', 'Sarah'], 'f-bear': ['eleven_v4', 'Alice'], 'f-owl': ['eleven_v4', 'Jessica'] };
+  const opt = file => (STYLE[file] ? { model: STYLE[file][0], voice: STYLE[file][1] } : {});
+  for (const [k, t] of Object.entries(COLOR)) await say(t, `c-${k}`, 'narrator', dir, opt(`c-${k}`));
+  for (const [k, t] of Object.entries(FIG)) await say(t, `f-${k}`, 'narrator', dir, opt(`f-${k}`));
 }
 // Bara Fyra i rads röster (sparar gratiskvoten):  node scripts/make-voices-eleven.mjs --fyra
 if (process.argv.includes('--fyra')) { if (!process.argv.includes('--no-rules')) await fyraRules(); await fyraDice(); process.exit(0); } // --no-rules: bara de korta tärningsreplikerna
