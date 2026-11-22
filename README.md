@@ -1,6 +1,6 @@
 # Spelhörnan
 
-Spelportal för plattan. Första spelet: **Blåbärsjakten**.
+Spelportal för plattan. Spel: **Blåbärsjakten**, **Fyra i rad** och **Sand Spelet**.
 
 Spelet är en webbapp. Den ligger på GitHub Pages, sparas i plattan och funkar utan internet.
 När plattan har internet hämtar den nya versioner av sig självt. Nya versionen syns nästa gång appen öppnas.

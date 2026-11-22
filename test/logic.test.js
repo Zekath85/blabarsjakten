@@ -152,3 +152,23 @@ for (const size of Object.keys(SIZES)) for (let seed = 1; seed <= 60; seed++) {
 }
 
 console.log('OK');
+
+// Fyra i rad
+import * as F from '../www/games/fyrairad/logic.js';
+{
+  const b = F.emptyBoard();
+  assert.equal(F.legalCells(b, 'red').length, F.ROWS);
+  assert.ok(F.legalCells(b, 'red').every(([, c]) => c === 1));
+  assert.equal(F.legalCells(b, 'white').length, F.ROWS * 4);
+  b.forEach(row => (row[1] = 0)); // röd kolumn full: då får man välja fritt
+  assert.equal(F.legalCells(b, 'red').length, F.ROWS * 3);
+  assert.ok(F.DIE.includes('white') && ['green', 'red', 'blue', 'yellow'].every(c => F.DIE.includes(c)));
+  const w = (rows) => { const c = F.emptyBoard(); rows.forEach(([r, k, p]) => (c[r][k] = p)); return c; };
+  assert.ok(F.winLine(w([[2, 0, 0], [2, 1, 0], [2, 2, 0], [2, 3, 0]]), 2, 1), 'vågrätt');
+  assert.ok(F.winLine(w([[1, 2, 1], [2, 2, 1], [3, 2, 1], [4, 2, 1]]), 3, 2), 'lodrätt');
+  assert.ok(F.winLine(w([[0, 0, 0], [1, 1, 0], [2, 2, 0], [3, 3, 0]]), 0, 0), 'diagonalt ner');
+  assert.ok(F.winLine(w([[1, 0, 1], [2, 1, 1], [3, 2, 1], [4, 3, 1]]), 4, 3), 'diagonalt ner (rad 1)');
+  assert.ok(F.winLine(w([[0, 3, 1], [1, 2, 1], [2, 1, 1], [3, 0, 1]]), 2, 1), 'diagonalt upp');
+  assert.equal(F.winLine(w([[2, 0, 0], [2, 1, 0], [2, 2, 1], [2, 3, 0]]), 2, 1), null, 'tre räcker inte');
+  assert.equal(F.isFull(F.emptyBoard()), false);
+}

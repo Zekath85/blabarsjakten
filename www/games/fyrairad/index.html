@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="sv">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+  <title>Fyra i rad</title>
+  <link rel="stylesheet" href="../../shared/style.css">
+  <link rel="manifest" href="../../manifest.webmanifest">
+  <link rel="icon" href="../../icons/icon-192.png">
+  <meta name="theme-color" content="#15241d">
+  <script type="module" src="../../shared/pwa.js"></script>
+  <!-- Samma utseende som Blåbärsjakten: vi lånar dess stilar (knappar, tärning, poängpiller, rutor) och lägger till brädet. -->
+  <link rel="stylesheet" href="../blabarsjakten/game.css">
+  <link rel="stylesheet" href="game.css">
+</head>
+<body>
+  <button class="icon-btn" id="backBtn" style="left:12px" aria-label="Till menyn">
+    <svg viewBox="0 0 40 40"><path d="M24 8 L12 20 L24 32" fill="none" stroke="#fff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </button>
+  <button class="icon-btn" id="soundBtn" style="right:12px" aria-label="Ljud"></button>
+  <button class="icon-btn" id="rulesBtn" style="right:96px" aria-label="Regler">
+    <svg viewBox="0 0 40 40"><path d="M5 9 Q13 5 20 10 Q27 5 35 9 V32 Q27 28 20 33 Q13 28 5 32Z" fill="rgba(255,255,255,.2)" stroke="#fff" stroke-width="3" stroke-linejoin="round"/><path d="M20 10 V33" stroke="#fff" stroke-width="3"/></svg>
+  </button>
+
+  <!-- Välj spelare -->
+  <section class="screen" id="setup">
+    <div class="setup-inner">
+      <h1 class="title">Fyra i rad</h1>
+      <div class="figures" id="figures"></div>
+      <h2>Hur många spelare?</h2>
+      <div class="counts" id="counts"></div>
+      <div class="names" id="names"></div>
+      <button class="btn green icon-right" id="startBtn" data-icon="play">Starta</button>
+    </div>
+  </section>
+
+  <!-- Spelplanen -->
+  <section class="screen" id="play" hidden>
+    <div class="scores" id="scores"></div>
+    <div class="board-wrap" id="boardWrap">
+      <div class="board" id="board"></div>
+      
+    </div>
+    <footer class="bar">
+      <div class="tray" id="tray"></div>
+      <button class="btn action" id="actionBtn"></button>
+    </footer>
+  </section>
+
+  <!-- Någon fick fyra i rad -->
+  <div class="overlay goal-overlay" id="winPanel" hidden>
+    <div class="confetti" id="confetti"></div>
+    <div class="goal-card">
+      <div class="goal-face" id="winFace"></div>
+      <h2 id="winTitle"></h2>
+      <p class="goal-total" id="winText"></p>
+      <div class="row">
+        <button class="btn green" id="againBtn" data-icon="refresh">Nytt spel</button>
+        <button class="btn blue" id="menuBtn" data-icon="home">Till menyn</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Regler -->
+  <div class="overlay" id="rules" hidden>
+    <div class="panel">
+      <h2>Så spelar man</h2>
+      <p>Man vill få fyra egna korgar i rad: åt sidan, uppåt eller snett.</p>
+      <p>Slå tärningen. Den visar en färg: grön, röd, blå eller gul. Då lägger du din korg i den färgens kolumn.</p>
+      <p>Visar tärningen vitt får du välja vilken ruta du vill. Är kolumnen full får du också välja fritt.</p>
+      <p>Dra korgen från botten till en ruta som lyser. Du kan också trycka på rutan.</p>
+      <div class="row"><button class="btn green" id="closeRulesBtn">Stäng</button></div>
+    </div>
+  </div>
+
+  <!-- Tärningen: man drar uppåt från knappen och släpper. Pilen visar riktning och kraft. -->
+  <div class="dice-layer" id="diceZone" hidden>
+    <svg class="aim" id="aim" hidden><line id="aimLine"/><circle id="aimDot" r="10"/></svg>
+    <div class="dice-shadow" id="diceShadow"></div>
+    <div class="dice-wrap" id="diceWrap"><div class="dice-pop"><div class="cube" id="cube"></div></div></div>
+    <div class="sparks" id="sparks"></div>
+  </div>
+
+  <script type="module" src="game.js"></script>
+</body>
+</html>
