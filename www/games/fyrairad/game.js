@@ -319,8 +319,8 @@ $('#menuBtn').onclick = () => (location.href = '../../index.html');
 
 // ---------- Två tärningar: färger (vitt två gånger) och figurer (sex sidor, en per figur) ----------
 const FACE = { 1: [0, 0], 6: [0, 180], 3: [0, -90], 4: [0, 90], 5: [-90, 0], 2: [90, 0] };
-// Vit sida: fyra små färger = "välj själv".
-const WHITE_FACE = `<svg viewBox="0 0 40 40"><circle cx="13" cy="13" r="6" fill="#e53935"/><circle cx="27" cy="13" r="6" fill="#fbc02d"/><circle cx="13" cy="27" r="6" fill="#43a047"/><circle cx="27" cy="27" r="6" fill="#1e88e5"/></svg>`;
+// Vit sida: helt vit (inga prickar eller färger) = "välj själv".
+const WHITE_FACE = '';
 $('#cube').innerHTML = F.DIE_COLOR.map((col, i) =>
   `<div class="face fc f${i + 1}" style="--c:${F.COLOR_HEX[col]}">${col === 'white' ? WHITE_FACE : ''}</div>`).join('');
 $('#cube2').innerHTML = F.DIE_FIG.map((fig, i) =>
