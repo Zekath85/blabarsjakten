@@ -115,5 +115,14 @@ export const sfx = {
   pop: () => tone(900 + Math.random() * 500, 0.16, { type: 'triangle', vol: 0.07, to: 300 }),
   turn: (i = 0) => notes([[523, 659], [587, 740], [659, 831], [698, 880]][i % 4], 0.11, 0.1), // egen liten melodi per spelare
   danger: () => { tone(98, 0.9, { type: 'sawtooth', vol: 0.08, to: 55 }); tone(104, 0.9, { type: 'sawtooth', vol: 0.05, to: 58, delay: 0.05 }); notes([311, 294, 262, 233], 0.16, 0.08); },
+  // Ett kort ljud per figur (används i Fyra i rad när man lägger en bricka).
+  figure: fig => ({
+    fox: () => notes([660, 880, 1175], 0.06, 0.1), // glatt och snabbt
+    owl: () => { tone(330, 0.25, { vol: 0.12, to: 300 }); tone(330, 0.3, { vol: 0.12, to: 280, delay: 0.3 }); }, // hoo, hoo
+    squirrel: () => notes([1568, 1319, 1568, 1976], 0.05, 0.08), // snabba pip
+    hedgehog: () => notes([392, 330], 0.12, 0.12), // mjuka dunk
+    hare: () => notes([523, 659, 784, 659], 0.09, 0.1), // hopp
+    bear: () => { tone(110, 0.5, { type: 'triangle', vol: 0.2, to: 82 }); mallet(196, 0.5, 0.1, 0.1); }, // mullrande
+  })[fig]?.(),
   win: () => notes([523, 659, 784, 1047, 784, 1047, 1319], 0.12, 0.13),
 };

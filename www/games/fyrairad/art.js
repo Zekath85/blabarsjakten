@@ -1,4 +1,4 @@
-// Femte figuren: Haren Hoppa. Ritad i samma stil som de andra figurerna (../blabarsjakten/art.js).
+// Nya figurer: Haren Hoppa och Björnen. Ritade i samma stil som de andra (../blabarsjakten/art.js).
 import { ART } from '../blabarsjakten/art.js';
 
 const OUT = 'stroke="#3b2414" stroke-width="2.5" stroke-linejoin="round"';
@@ -15,6 +15,18 @@ const HARE = `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
   <circle cx="28" cy="68" r="5" fill="#f2a07a" opacity=".7"/><circle cx="72" cy="68" r="5" fill="#f2a07a" opacity=".7"/>
 </svg>`;
 
-// Alla fem figurerna, i samma ordning som kolumnerna på brädet.
-export const FIG_ART = { fox: ART.fox, owl: ART.owl, squirrel: ART.squirrel, hedgehog: ART.hedgehog, hare: HARE };
+const BEAR = `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="22" cy="28" r="13" fill="#9a6a3c" ${OUT}/><circle cx="78" cy="28" r="13" fill="#9a6a3c" ${OUT}/>
+  <circle cx="22" cy="28" r="6" fill="#e9b98a"/><circle cx="78" cy="28" r="6" fill="#e9b98a"/>
+  <circle cx="50" cy="56" r="36" fill="#b07a45" ${OUT}/>
+  <ellipse cx="50" cy="68" rx="19" ry="15" fill="#f0d2ac"/>
+  <circle cx="37" cy="50" r="5" fill="#2b1d14"/><circle cx="63" cy="50" r="5" fill="#2b1d14"/>
+  <circle cx="38.6" cy="48.2" r="1.7" fill="#fff"/><circle cx="64.6" cy="48.2" r="1.7" fill="#fff"/>
+  <ellipse cx="50" cy="63" rx="7" ry="5" fill="#2b1d14"/>
+  <path d="M50 68 V73 M42 75 Q50 81 58 75" fill="none" stroke="#3b2414" stroke-width="2.5" stroke-linecap="round"/>
+  <circle cx="29" cy="64" r="5" fill="#f2a07a" opacity=".6"/><circle cx="71" cy="64" r="5" fill="#f2a07a" opacity=".6"/>
+</svg>`;
+
+// Alla sex figurerna: en motsvarighet till varje figur i Bamse-spelet.
+export const FIG_ART = { fox: ART.fox, owl: ART.owl, squirrel: ART.squirrel, hedgehog: ART.hedgehog, hare: HARE, bear: BEAR };
 export { ART };

@@ -70,12 +70,23 @@ if (process.argv.includes('--sample')) {
   process.exit(0);
 }
 
+// Fyra i rad: reglerna i dialogen "Så spelar man" läses upp med berättarrösten (www/games/fyrairad/voice/rules.mp3).
+async function fyraRules() {
+  const dir = 'www/games/fyrairad/voice';
+  mkdirSync(dir, { recursive: true });
+  const html = readFileSync('www/games/fyrairad/index.html', 'utf8');
+  await say(html.split('id="rulesText">')[1].split('</div>')[0].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim(), 'rules', 'narrator', dir);
+}
+// Bara reglerna för Fyra i rad (sparar gratiskvoten):  node scripts/make-voices-eleven.mjs --fyra
+if (process.argv.includes('--fyra')) { await fyraRules(); process.exit(0); }
+
 if (process.argv.includes('--all')) rmSync(OUT, { recursive: true, force: true });
 mkdirSync(OUT, { recursive: true });
 for (const [deck, cards] of Object.entries(DECKS)) for (const [i, c] of cards.entries()) await say(c.text, `${deck}-${i}`, deck);
 // Reglerna och berättarens repliker: samma texter som make-voices.mjs.
 const html = readFileSync('www/games/blabarsjakten/index.html', 'utf8');
 await say(html.split('id="rulesText">')[1].split('</div>')[0].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim(), 'rules', 'narrator');
+await fyraRules();
 const src = readFileSync('scripts/make-voices.mjs', 'utf8');
 const PLACE = ['första', 'andra', 'tredje', 'fjärde'], BONUS = ['fem blåbärskorgar', 'tre blåbärskorgar', 'två blåbärskorgar', 'en blåbärskorg'];
 const lines = Object.fromEntries([...src.matchAll(/^\s+(\w+): '([^']+)',$/gm)].map(m => [m[1], m[2]]));

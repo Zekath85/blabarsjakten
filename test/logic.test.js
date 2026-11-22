@@ -157,30 +157,38 @@ console.log('OK');
 import * as F from '../www/games/fyrairad/logic.js';
 {
   const b = F.emptyBoard();
-  assert.equal([b.length, b[0].length].join('x'), '4x5', '4 rader, 5 kolumner');
-  // Alla fyra spelplaner: varje rad har alla fem figurer, och alla fyra färger finns en gång.
+  assert.equal([b.length, b[0].length].join('x'), '4x4', '4 rader, 4 kolumner');
+  assert.equal(F.FIGS.length, 6);
+  // Alla fyra spelplaner: 4x4, alla fyra färger en gång, alla sex figurer finns minst två gånger, ingen bräde är lika.
   for (const lay of Object.values(F.LAYOUTS)) {
-    lay.forEach(row => assert.deepEqual([...row.figs].sort(), [...F.FIGS].sort()));
+    assert.equal(lay.length, 4);
+    lay.forEach(row => assert.equal(row.figs.length, 4));
     assert.deepEqual(lay.map(r => r.color).sort(), ['blue', 'green', 'red', 'yellow']);
+    const all = lay.flatMap(r => r.figs);
+    F.FIGS.forEach(f => assert.ok(all.filter(x => x === f).length >= 2, `${f} finns minst två gånger`));
   }
-  const L = F.LAYOUTS.blue;
   assert.notDeepEqual(F.LAYOUTS.blue, F.LAYOUTS.green, 'spelplanerna är olika');
-  assert.equal(F.legalCells(b, L, 'red', 'owl').length, 1, 'färg + figur = en ruta');
-  assert.equal(F.legalCells(b, L, 'red', 'any').length, F.COLS, 'valfri figur: hela raden');
-  assert.equal(F.legalCells(b, L, 'white', 'fox').length, F.ROWS, 'vitt: figuren i alla rader');
-  assert.equal(F.legalCells(b, L, 'white', 'any').length, F.ROWS * F.COLS, 'vitt + stjärna: allt');
-  const [[r0, c0]] = F.legalCells(b, L, 'red', 'owl');
-  b[r0][c0] = 0;
-  assert.equal(F.legalCells(b, L, 'red', 'owl').length, 0, 'rutan är tagen: turen går vidare');
+  const L = F.LAYOUTS.blue; // rad 1 (röd) = R B F O
+  assert.deepEqual(F.legalCells(b, L, 'red', 'bear'), [[1, 1]], 'färg + figur = en ruta');
+  assert.equal(F.legalCells(b, L, 'red', 'squirrel').length, 0, 'figuren finns inte i raden: turen går vidare');
+  assert.equal(F.legalCells(b, F.LAYOUTS.green, 'yellow', 'squirrel').length, 2, 'figuren två gånger: man väljer');
+  assert.equal(F.legalCells(b, L, 'white', 'fox').length, 3, 'vitt: figuren i alla rader');
+  b[1][1] = 0;
+  assert.equal(F.legalCells(b, L, 'red', 'bear').length, 0, 'rutan är tagen: turen går vidare');
   assert.ok(F.DIE_COLOR.includes('white') && L.every(r => F.DIE_COLOR.includes(r.color)));
-  assert.ok(F.FIGS.every(f => F.DIE_FIG.includes(f)) && F.DIE_FIG.includes('any'));
+  assert.deepEqual([...F.DIE_FIG].sort(), [...F.FIGS].sort());
   const w = rows => { const c = F.emptyBoard(); rows.forEach(([r, k, p]) => (c[r][k] = p)); return c; };
   assert.ok(F.winLine(w([[2, 0, 0], [2, 1, 0], [2, 2, 0], [2, 3, 0]]), 2, 1), 'vågrätt');
-  assert.ok(F.winLine(w([[2, 4, 0], [2, 1, 0], [2, 2, 0], [2, 3, 0]]), 2, 4), 'vågrätt, höger kant');
   assert.ok(F.winLine(w([[0, 2, 1], [1, 2, 1], [2, 2, 1], [3, 2, 1]]), 2, 2), 'lodrätt');
   assert.ok(F.winLine(w([[0, 0, 0], [1, 1, 0], [2, 2, 0], [3, 3, 0]]), 0, 0), 'diagonalt ner');
-  assert.ok(F.winLine(w([[0, 1, 1], [1, 2, 1], [2, 3, 1], [3, 4, 1]]), 3, 4), 'diagonalt ner (höger)');
   assert.ok(F.winLine(w([[0, 3, 1], [1, 2, 1], [2, 1, 1], [3, 0, 1]]), 2, 1), 'diagonalt upp');
   assert.equal(F.winLine(w([[2, 0, 0], [2, 1, 0], [2, 2, 1], [2, 3, 0]]), 2, 1), null, 'tre räcker inte');
   assert.equal(F.isFull(F.emptyBoard()), false);
+  // Datorn: normal och svår tar vinsten, svår stoppar också.
+  const free = [[0, 3], [3, 0], [1, 1]];
+  const three = w([[0, 0, 1], [0, 1, 1], [0, 2, 1]]); // spelare 1 har tre i rad, [0,3] saknas
+  assert.deepEqual(F.pickCell(three, free, 0, 'hard'), [0, 3], 'svår stoppar motståndarens fyra i rad');
+  const mineThree = w([[0, 0, 0], [0, 1, 0], [0, 2, 0]]);
+  for (const lvl of ['normal', 'hard']) assert.deepEqual(F.pickCell(mineThree, free, 0, lvl), [0, 3], `${lvl} tar sin vinst`);
+  for (const lvl of F.LEVELS) { const p = F.pickCell(F.emptyBoard(), free, 0, lvl); assert.ok(free.some(([r, c]) => r === p[0] && c === p[1]), `${lvl} väljer en tillåten ruta`); }
 }
