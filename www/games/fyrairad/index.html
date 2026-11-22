@@ -42,12 +42,14 @@
     </div>
     <footer class="bar">
       <div class="tray" id="tray"></div>
+      <div class="deck" id="deck" hidden></div>
       <div class="actions" id="previewActions">
         <div class="sizes" id="boards" aria-label="Spelplan"></div>
         <div class="sizes" id="levels" aria-label="Hur svår datorn är"></div>
         <div class="sizes" id="rounds" aria-label="Först till så många omgångar"></div>
         <button class="btn green icon-right" id="startBtn" data-icon="play">Starta</button>
       </div>
+      <button class="btn action" id="actionBtn2" hidden></button>
       <button class="btn action" id="actionBtn" hidden></button>
     </footer>
   </section>
@@ -64,6 +66,15 @@
         <button class="btn green" id="againBtn" data-icon="refresh" hidden>Nytt spel</button>
         <button class="btn blue" id="menuBtn" data-icon="home" hidden>Till menyn</button>
       </div>
+    </div>
+  </div>
+
+  <!-- Figurskapare (samma som i Blåbärsjakten) -->
+  <div class="overlay" id="lookPanel" hidden>
+    <div class="panel look-panel">
+      <div class="look-preview" id="lookPreview"></div>
+      <div class="look-rows" id="lookRows"></div>
+      <button class="btn green look-done" id="lookDoneBtn">Klar!</button>
     </div>
   </div>
 
@@ -112,6 +123,7 @@
   <!-- Tärningarna: man drar uppåt från knappen och släpper. Pilen visar riktning och kraft. -->
   <div class="dice-layer" id="diceZone" hidden>
     <svg class="aim" id="aim" hidden><line id="aimLine"/><circle id="aimDot" r="10"/></svg>
+    <svg class="aim" id="aim2" hidden><line id="aimLine2"/><circle id="aimDot2" r="10"/></svg>
     <div class="dice-shadow" id="diceShadow"></div>
     <div class="dice-shadow" id="diceShadow2"></div>
     <div class="dice-wrap" id="diceWrap"><div class="dice-pop"><div class="cube" id="cube"></div></div></div>

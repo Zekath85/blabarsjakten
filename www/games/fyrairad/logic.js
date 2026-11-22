@@ -55,17 +55,18 @@ export const isFull = cells => cells.every(row => row.every(v => v !== null));
 // Datorns val bland de rutor den får välja mellan. Tre nivåer:
 //  easy:   slumpar.
 //  normal: tar fyra i rad om den kan, annars slumpar.
-//  hard:   tar fyra i rad, stoppar annars motståndaren, annars väljer den ruta som ger flest egna brickor i en linje
+//  hard:   tar fyra i rad, stoppar annars en motståndare (n = antal spelare), annars väljer den ruta som ger flest egna brickor i en linje
 //          (och helst stör motståndaren).
 export const LEVELS = ['easy', 'normal', 'hard'];
-export function pickCell(cells, allowed, me, level = 'normal', rnd = Math.random) {
+export function pickCell(cells, allowed, me, level = 'normal', rnd = Math.random, n = 2) {
+  const others = Array.from({ length: n }, (_, i) => i).filter(i => i !== me); // alla andra spelare
   const pick = list => list[Math.floor(rnd() * list.length)];
   if (level === 'easy') return pick(allowed);
   const wins = who => allowed.filter(([r, c]) => { cells[r][c] = who; const w = winLine(cells, r, c); cells[r][c] = null; return w; });
   const mine = wins(me);
   if (mine.length) return pick(mine);
   if (level === 'normal') return pick(allowed);
-  const block = wins(1 - me);
+  const block = others.flatMap(wins);
   if (block.length) return pick(block);
   // Poäng för en ruta: antal egna brickor i de fyra-linjer som går genom den och inte är blockerade av motståndaren.
   const score = ([r, c]) => {
@@ -75,7 +76,7 @@ export function pickCell(cells, allowed, me, level = 'normal', rnd = Math.random
         const line = [0, 1, 2, 3].map(i => [r + dr * (k + i), c + dc * (k + i)]);
         if (line.some(([y, x]) => cells[y]?.[x] === undefined)) continue; // utanför brädet
         const vals = line.map(([y, x]) => cells[y][x]);
-        const own = vals.filter(v => v === me).length, opp = vals.filter(v => v === 1 - me).length;
+        const own = vals.filter(v => v === me).length, opp = vals.filter(v => v !== null && v !== me).length;
         if (!opp) s += own * own + 1; // egna brickor i en öppen linje
         else if (!own) s += opp; // stör motståndarens linje
       }

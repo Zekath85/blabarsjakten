@@ -191,4 +191,7 @@ import * as F from '../www/games/fyrairad/logic.js';
   const mineThree = w([[0, 0, 0], [0, 1, 0], [0, 2, 0]]);
   for (const lvl of ['normal', 'hard']) assert.deepEqual(F.pickCell(mineThree, free, 0, lvl), [0, 3], `${lvl} tar sin vinst`);
   for (const lvl of F.LEVELS) { const p = F.pickCell(F.emptyBoard(), free, 0, lvl); assert.ok(free.some(([r, c]) => r === p[0] && c === p[1]), `${lvl} väljer en tillåten ruta`); }
+  // Tre spelare: svår stoppar den som har tre i rad, även om det är spelare 2.
+  const three2 = w([[0, 0, 2], [0, 1, 2], [0, 2, 2]]);
+  assert.deepEqual(F.pickCell(three2, free, 0, 'hard', Math.random, 3), [0, 3], 'svår stoppar också spelare 3');
 }
