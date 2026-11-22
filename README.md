@@ -1,6 +1,9 @@
 # Spelhörnan
 
-Spelportal för plattan. Spel: **Blåbärsjakten**, **Fyra i rad**, **Fia med knuff** och **Sand Spelet**.
+Spelportal för plattan. Spel: **Blåbärsjakten**, **Fyra i rad**, **Memory**, **Fia med knuff** och **Sand Spelet**.
+
+**Memory** (`www/games/memory/`): hitta par, 2–4 spelare eller en mot datorn (lätt, medel, svår; reglerna och datorns minne ligger i `logic.js`).
+Röster görs med `node scripts/make-voices-eleven.mjs --memory --no-library` (nyckeln ligger i `.env.local`).
 
 **Fia med knuff** (`www/games/fiamedknuff/`): 2-4 spelare, eller en mot datorn (lätt, medel, svår). Sexa för att komma ut, knuff, exakt slag i mål. Reglerna ligger i `logic.js`. Röster görs med `node scripts/make-voices-eleven.mjs --fia --no-library`.
 
