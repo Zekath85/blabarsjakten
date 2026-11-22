@@ -153,8 +153,11 @@ $('#previewActions').onclick = e => {
 
 // ---------- Brädet: 4 rader (färger) x 4 kolumner (figurer) ----------
 function fit() { // rutorna är runda: räkna ut bredden så att hela brädet får plats (ramar och luft: 74px bredd, 104px höjd)
+  // På tablet sparas en remsa till vänster om brädet åt tärningarna, som ligger där tills kortet är lagt.
+  const lane = tablet() && !$('#deck').hidden ? 140 : 0;
+  $('#boardWrap').style.paddingLeft = lane + 'px';
   const w = $('#boardWrap').getBoundingClientRect();
-  const cell = Math.max(24, Math.min((w.width - 24 - 74) / 4, (w.height - 24 - 104) / 4));
+  const cell = Math.max(24, Math.min((w.width - lane - 24 - 74) / 4, (w.height - 24 - 104) / 4));
   $('#board').style.setProperty('--bw', 4 * cell + 74 + 'px');
 }
 addEventListener('resize', () => !$('#play').hidden && fit());
@@ -204,6 +207,7 @@ function beginRound() {
 }
 
 function startTurn() {
+  clearDice();
   state = 'roll1'; allowed = []; rolled = {};
   thrown[0] = thrown[1] = false; pending[0] = pending[1] = null;
   renderBoard(); renderScores();
@@ -395,6 +399,7 @@ async function place(r, c) {
   if (state !== 'place') return;
   state = 'busy';
   cells[r][c] = current;
+  clearDice(); // kortet är lagt: tärningarna får lämna spelplanen
   allowed = [];
   renderBoard(); renderScores(); renderRolled(); setButton();
   sfx.land();
@@ -452,21 +457,53 @@ $('#cube2').innerHTML = F.DIE_FIG.map((fig, i) =>
 const DICE = 96, DT = 1 / 60;
 const DIE = [{ wrap: '#diceWrap', shadow: '#diceShadow', cube: '#cube' }, { wrap: '#diceWrap2', shadow: '#diceShadow2', cube: '#cube2' }];
 
-// live: tärningar som flyger eller ligger kvar medan den andra kastas (två knappar på tablet). De får inte döljas.
-const live = new Set();
+// live: tärningar som flyger eller ligger kvar medan den andra kastas. De får inte döljas.
+// parked: tärningar som har flyttats till vänster om spelplanen, där de ligger tills kortet är lagt.
+const live = new Set(), parked = new Set();
 function showDiceAt(ks, x, y) { // tärningarna i ks syns, och de som redan är i spel
   const zone = $('#diceZone');
   zone.hidden = false;
   if (!live.size) { zone.classList.remove('landed', 'flying'); zone.classList.add('aiming'); }
-  DIE.forEach((d, i) => { $(d.wrap).style.display = $(d.shadow).style.display = ks.includes(i) || live.has(i) ? '' : 'none'; });
-  ks.forEach(k => placeDice(k, x, y, 0));
+  DIE.forEach((d, i) => {
+    $(d.wrap).style.display = ks.includes(i) || live.has(i) ? '' : 'none';
+    $(d.shadow).style.display = ks.includes(i) || (live.has(i) && !parked.has(i)) ? '' : 'none';
+  });
+  ks.forEach(k => { $(DIE[k].wrap).style.transition = ''; parked.delete(k); placeDice(k, x, y, 0); });
 }
-// Kastet är klart: tärningarna får ligga kvar en sekund, sedan försvinner de.
+
+// Var tärningarna ligger: till vänster om spelplanen, sida vid sida. Färgtärningen först, figurtärningen till höger om den.
+// Finns inte plats till vänster (mobil) flyttas de inte, utan försvinner när kastet är klart.
+function restSpots() {
+  const b = $('#board').getBoundingClientRect(), avail = b.left - 6;
+  const size = Math.min(64, (avail - 8) / 2);
+  if (size < 41) return null;
+  const x0 = (b.left - (2 * size + 8)) / 2 + size / 2, y = b.top + b.height / 2;
+  return [0, 1].map(k => ({ x: x0 + k * (size + 8), y, s: size / DICE }));
+}
+function parkDie(k) {
+  const spot = restSpots()?.[k];
+  if (!spot) return;
+  const w = $(DIE[k].wrap);
+  w.style.transition = 'transform .6s cubic-bezier(.3,.7,.3,1)';
+  w.style.transform = `translate(${spot.x - DICE / 2}px, ${spot.y - DICE / 2}px) scale(${spot.s})`;
+  $(DIE[k].shadow).style.display = 'none';
+  parked.add(k);
+  const z = $('#diceZone');
+  z.classList.remove('landed', 'flying', 'aiming'); // ingen mörk ton över planen medan de ligger
+}
+// Kastet är klart. Med plats till vänster ligger tärningarna kvar där tills kortet är lagt. Annars försvinner de efter en stund.
 async function settleDice() {
+  if (restSpots()) return wait(650); // låt dem hinna glida på plats
   await wait(1000);
-  live.clear();
-  $('#diceZone').hidden = true;
-  $('#diceZone').classList.remove('landed', 'flying');
+  clearDice();
+}
+// Tas bort när kortet är lagt, eller när nästa tur börjar.
+function clearDice() {
+  live.clear(); parked.clear();
+  const z = $('#diceZone');
+  z.hidden = true;
+  z.classList.remove('landed', 'flying', 'aiming');
+  DIE.forEach(d => { $(d.wrap).style.transition = ''; });
 }
 function placeDice(k, x, y, z) {
   $(DIE[k].wrap).style.transform = `translate(${x - DICE / 2}px, ${y - DICE / 2 - z}px) scale(${1 + z / 500})`;
@@ -555,6 +592,8 @@ async function throwDice(ks, ns, t) {
     const ang = (i / 12) * Math.PI * 2, dist = 90 + Math.random() * 90;
     return `<i class="spark" style="--dx:${Math.cos(ang) * dist}px;--dy:${Math.sin(ang) * dist}px;--c:${[spark, '#fff'][i % 2]}"></i>`;
   }).join('');
+  await wait(700); // låt tärningen ligga en stund där den landade, flytta den sedan till vänster om spelplanen
+  ks.forEach(parkDie);
 }
 
 // ---------- Knappar högst upp ----------
