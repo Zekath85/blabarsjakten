@@ -1,6 +1,8 @@
 # Spelhörnan
 
-Spelportal för plattan. Spel: **Blåbärsjakten**, **Fyra i rad** och **Sand Spelet**.
+Spelportal för plattan. Spel: **Blåbärsjakten**, **Fyra i rad**, **Fia med knuff** och **Sand Spelet**.
+
+**Fia med knuff** (`www/games/fiamedknuff/`): 2-4 spelare, eller en mot datorn (lätt, medel, svår). Sexa för att komma ut, knuff, exakt slag i mål. Reglerna ligger i `logic.js`. Röster görs med `node scripts/make-voices-eleven.mjs --fia --no-library`.
 
 Spelet är en webbapp. Den ligger på GitHub Pages, sparas i plattan och funkar utan internet.
 När plattan har internet hämtar den nya versioner av sig självt. Nya versionen syns nästa gång appen öppnas.

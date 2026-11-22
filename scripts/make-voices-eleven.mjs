@@ -109,6 +109,21 @@ async function fyraDice() {
 // Bara Fyra i rads röster (sparar gratiskvoten):  node scripts/make-voices-eleven.mjs --fyra
 if (process.argv.includes('--fyra')) { if (!process.argv.includes('--no-rules')) await fyraRules(); await fyraDice(); process.exit(0); } // --no-rules: bara de korta tärningsreplikerna
 
+// Fia med knuff: reglerna (rules.mp3) och berättarens korta repliker. Texterna ska vara samma som LINES i www/games/fiamedknuff/game.js.
+//   node scripts/make-voices-eleven.mjs --fia --no-library            (--no-rules: bara replikerna, --force: gör om)
+async function fiaVoice() {
+  const dir = 'www/games/fiamedknuff/voice';
+  mkdirSync(dir, { recursive: true });
+  if (!process.argv.includes('--no-rules')) {
+    const html = readFileSync('www/games/fiamedknuff/index.html', 'utf8');
+    await say(html.split('id="rulesText">')[1].split('</div>')[0].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim(), 'rules', 'narrator', dir);
+  }
+  const game = readFileSync('www/games/fiamedknuff/game.js', 'utf8');
+  const lines = Object.fromEntries([...game.split('const LINES = {')[1].split('};')[0].matchAll(/(\w+): '([^']+)'/g)].map(m => [m[1], m[2]]));
+  for (const [k, t] of Object.entries(lines)) await say(t, k, 'narrator', dir);
+}
+if (process.argv.includes('--fia')) { await fiaVoice(); process.exit(0); }
+
 if (process.argv.includes('--all')) rmSync(OUT, { recursive: true, force: true });
 mkdirSync(OUT, { recursive: true });
 for (const [deck, cards] of Object.entries(DECKS)) for (const [i, c] of cards.entries()) await say(c.text, `${deck}-${i}`, deck);

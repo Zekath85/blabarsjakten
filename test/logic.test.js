@@ -199,3 +199,91 @@ import * as F from '../www/games/fyrairad/logic.js';
   const three2 = w([[0, 0, 2], [0, 1, 2], [0, 2, 2]]);
   assert.deepEqual(F.pickCell(three2, free, 0, 'hard', Math.random, 3), [0, 3], 'svår stoppar också spelare 3');
 }
+
+// Fia med knuff
+import * as FK from '../www/games/fiamedknuff/logic.js';
+{
+  const key = c => c.join(',');
+  // Steg-talet (0-39) som en spelare på plats seat har när den står på samma ruta som cell.
+  const stepOn = (seat, cell) => { for (let s = 0; s < 40; s++) if (key(FK.cellOf(seat, s)) === key(cell)) return s; throw new Error('ingen ruta'); };
+  // Brädet: 40 olika rutor, grannar hänger ihop, gången går från spetsen in mot mitten.
+  assert.equal(new Set(FK.TRACK.map(key)).size, 40);
+  FK.TRACK.forEach((c, i) => { const n = FK.TRACK[(i + 1) % 40]; assert.equal(Math.abs(c[0] - n[0]) + Math.abs(c[1] - n[1]), 1, `ruta ${i} ligger intill nästa`); });
+  for (let s = 0; s < 4; s++) {
+    assert.deepEqual(FK.cellOf(s, 0), FK.TRACK[s * 10], 'startrutan');
+    const tip = FK.cellOf(s, 39), lane = FK.cellOf(s, 40);
+    assert.equal(Math.abs(tip[0] - lane[0]) + Math.abs(tip[1] - lane[1]), 1, 'gången börjar vid sista banrutan');
+    assert.deepEqual(FK.cellOf(s, 43).map(v => Math.abs(v - 5)).sort(), [0, 1], 'målet ligger nära mitten');
+  }
+  const all = new Set([...FK.TRACK, ...[0, 1, 2, 3].flatMap(s => [-1, 40, 41, 42, 43].flatMap(p => (p < 0 ? [0, 1, 2, 3] : [0]).map(i => FK.cellOf(s, p, i))))].map(key));
+  assert.equal(all.size, 40 + 16 + 16, 'hemma-platser och gångar delar inte ruta med banan eller varandra');
+  assert.deepEqual(FK.seatsFor(2), [0, 2]);
+
+  // Sexa för att komma ut. Alla hemma = tre försök. Likadana pjäser hemma ger bara ett drag.
+  let g = FK.createGame(2);
+  assert.equal(FK.needSix(g, 0), true); assert.equal(FK.rollsAllowed(g, 0), 3);
+  for (const d of [1, 2, 3, 4, 5]) assert.equal(FK.legalMoves(g, 0, d).length, 0, 'ingen sexa: inget drag');
+  assert.deepEqual(FK.legalMoves(g, 0, 6), [{ i: 0, to: 0 }]);
+  FK.applyMove(g, 0, 0, 6);
+  assert.equal(g.pieces[0][0], 0); assert.equal(FK.rollsAllowed(g, 0), 1);
+  assert.deepEqual(FK.legalMoves(g, 0, 6), [{ i: 0, to: 6 }], 'startrutan är upptagen: ingen ny pjäs ut');
+  g.pieces[0][1] = 3;
+  assert.ok(!FK.legalMoves(g, 0, 3).some(m => m.i === 0), 'inte på egen pjäs');
+  // Knuff: pjäs 0 landar på en motståndare.
+  g = FK.createGame(2);
+  g.pieces[0][0] = 5; g.pieces[1][0] = stepOn(2, FK.cellOf(0, 9));
+  const r = FK.applyMove(g, 0, 0, 4);
+  assert.deepEqual(r.knuffed, [{ p: 1, i: 0 }]); assert.equal(g.pieces[1][0], FK.HOME); assert.equal(g.pieces[0][0], 9);
+  // En sexa ut knuffar den som står på startrutan.
+  g = FK.createGame(2); g.pieces[1][0] = stepOn(2, FK.cellOf(0, 0)); g.pieces[0][1] = 7;
+  assert.deepEqual(FK.applyMove(g, 0, 0, 6).knuffed, [{ p: 1, i: 0 }], 'sexa ut knuffar den på startrutan');
+  // Gången är trygg: ingen knuff där. Exakt slag krävs för mål.
+  g = FK.createGame(2); g.pieces[0] = [38, 41, FK.HOME, FK.HOME];
+  assert.equal(FK.legalMoves(g, 0, 3).some(m => m.i === 1), false, 'för långt förbi målet');
+  assert.deepEqual(FK.legalMoves(g, 0, 2).filter(m => m.i === 1), [{ i: 1, to: 43 }], 'exakt slag ger mål');
+  assert.equal(FK.legalMoves(g, 0, 3).some(m => m.i === 0), false, 'gången är upptagen av egen pjäs');
+  assert.equal(FK.legalMoves(g, 0, 4).find(m => m.i === 0).to, 42, 'in i gången');
+  // Vinst: alla fyra i mål. En pjäs hemma och resten i mål = sexa behövs.
+  g = FK.createGame(3); g.pieces[1] = [43, 43, 43, FK.HOME];
+  assert.equal(FK.needSix(g, 1), true); assert.equal(FK.hasWon(g, 1), false);
+  g.pieces[1] = [43, 43, 43, 42];
+  assert.equal(FK.applyMove(g, 1, 3, 1).won, true);
+  // Hot: en motståndare 1-6 rutor bakom kan knuffa. Långt bort hotar ingen.
+  g = FK.createGame(2); g.pieces[0][0] = 10; g.pieces[1][0] = stepOn(2, FK.cellOf(0, 25));
+  assert.equal(FK.threatened(g, 0, 10), false, 'långt bort');
+  g.pieces[1][0] = stepOn(2, FK.cellOf(0, 8));
+  assert.equal(FK.threatened(g, 0, 10), true, 'två rutor bakom');
+  // Datorn: svår går i mål före knuff, knuffar före vanligt drag. Medel knuffar. Alla väljer ett giltigt drag.
+  g = FK.createGame(2); g.pieces[0] = [41, 8, FK.HOME, FK.HOME]; g.pieces[1] = [stepOn(2, FK.cellOf(0, 11)), FK.HOME, FK.HOME, FK.HOME];
+  assert.equal(FK.pickMove(g, 0, 2, 'hard').i, 0, 'svår går i mål (41 + 2 = 43)');
+  assert.equal(FK.pickMove(g, 0, 3, 'hard').i, 1, 'svår knuffar (8 + 3 = 11)');
+  assert.equal(FK.pickMove(g, 0, 3, 'normal').i, 1, 'medel knuffar');
+  for (const lvl of FK.LEVELS) for (let d = 1; d <= 6; d++) { const m = FK.pickMove(g, 0, d, lvl); if (m) assert.ok(FK.legalMoves(g, 0, d).some(x => x.i === m.i && x.to === m.to)); }
+  // Svår skyddar: pjäs 1 (på 5) hotas av en motståndare två rutor bakom, så den flyttas hellre än främre pjäsen 0.
+  g = FK.createGame(2); g.pieces[0] = [25, 5, FK.HOME, FK.HOME]; g.pieces[1] = [stepOn(2, FK.cellOf(0, 3)), FK.HOME, FK.HOME, FK.HOME];
+  assert.equal(FK.threatened(g, 0, 5), true);
+  assert.equal(FK.pickMove(g, 0, 5, 'hard', () => 0).i, 1, 'svår skyddar den hotade pjäsen');
+  // Hela spel med slump: alla nivåer, 2-4 spelare. Någon vinner alltid och reglerna håller hela vägen.
+  const play = (n, levels) => {
+    const G = FK.createGame(n);
+    let p = 0, turns = 0, winner = -1;
+    while (winner < 0 && turns++ < 20000) {
+      let rolls = FK.rollsAllowed(G, p), again = true;
+      while (again && winner < 0) {
+        again = false;
+        const d = FK.rollDie(), mv = FK.pickMove(G, p, d, levels[p]);
+        if (mv && FK.applyMove(G, p, mv.i, d).won) winner = p;
+        if (d === 6) again = true; else if (!mv && --rolls > 0) again = true;
+        const seen = new Set(); // aldrig två pjäser på samma ruta (utom i mål)
+        G.pieces.forEach((ps, q) => ps.forEach(v => { if (v >= 0 && v < 43) { const k = key(FK.cellOf(G.seats[q], v)); assert.ok(!seen.has(k), `dubbel ruta ${k}`); seen.add(k); } }));
+      }
+      p = (p + 1) % n;
+    }
+    assert.ok(winner >= 0 && FK.hasWon(G, winner), `spelet tar slut (${n} spelare)`);
+    return winner;
+  };
+  for (let run = 0; run < 90; run++) play(2 + (run % 3), [0, 1, 2, 3].map(i => FK.LEVELS[(run + i) % 3]));
+  let hardWins = 0;
+  for (let run = 0; run < 200; run++) { const first = run % 2; if (play(2, first ? ['easy', 'hard'] : ['hard', 'easy']) === (first ? 1 : 0)) hardWins++; }
+  assert.ok(hardWins > 110, `svår vinner oftast mot lätt (${hardWins}/200)`);
+}

@@ -40,6 +40,7 @@
     import { music } from './shared/music.js';
     import { MENU_SONG } from './shared/menu-song.js';
     import { settings } from './shared/audio.js';
+    import { avatar, DEFAULT_LOOKS } from './shared/avatar.js';
     // Lugn menymusik direkt, eller vid första trycket om plattan kräver det.
     music.autostart(MENU_SONG);
     // Musikknappen: en not, med ett streck över när musiken är av.
@@ -56,6 +57,7 @@
     const GAMES = [
       { href: 'games/blabarsjakten/index.html', name: 'Blåbärsjakten', text: 'Samla flest blåbärskorgar!', pic: ['fox', 'owl', 'squirrel', 'hedgehog'].map(k => ART[k]).join('') },
       { href: 'games/fyrairad/index.html', name: 'Fyra i rad', text: 'Få fyra korgar i rad!', pic: [['fox', '#43a047'], ['owl', '#e53935'], ['squirrel', '#1e88e5'], ['hedgehog', '#fbc02d']].map(([k, c]) => `<svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="46" fill="${c}" stroke="#fff4c9" stroke-width="5"/>${ART[k].replace('<svg', '<svg x="14" y="14" width="72" height="72"')}</svg>`).join('') },
+      { href: 'games/fiamedknuff/index.html', name: 'Fia med knuff', text: 'Knuffa hem de andra!', pic: [['#e53935', 0], ['#1e88e5', 1], ['#43a047', 2], ['#8e24aa', 3]].map(([c, i]) => `<svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="46" fill="${c}" stroke="#fff4c9" stroke-width="5"/>${avatar(DEFAULT_LOOKS[i], c, true).replace('<svg', '<svg x="14" y="14" width="72" height="72"')}</svg>`).join('') },
       { href: 'games/sandspelet/index.html', name: 'Sand Spelet', text: 'Häll sand, vatten och eld!', pic: '<svg viewBox="0 0 100 100"><path d="M10 82 L50 28 L90 82 Z" fill="#e8c36a" stroke="#b98f3a" stroke-width="4" stroke-linejoin="round"/></svg><svg viewBox="0 0 100 100"><path d="M50 12 C50 12 22 48 22 64 a28 28 0 0 0 56 0 C78 48 50 12 50 12 Z" fill="#4f9be6" stroke="#2f6fb5" stroke-width="4" stroke-linejoin="round"/></svg><svg viewBox="0 0 100 100"><path d="M50 10 C58 30 80 42 80 64 a30 30 0 0 1 -60 0 C20 50 30 42 36 30 C40 40 44 42 46 40 C44 28 46 18 50 10 Z" fill="#ef7a1e" stroke="#c4501a" stroke-width="4" stroke-linejoin="round"/><path d="M50 52 C56 60 62 66 62 74 a12 12 0 0 1 -24 0 C38 66 46 60 50 52 Z" fill="#f6d860"/></svg><svg viewBox="0 0 100 100"><path d="M50 88 V50" fill="none" stroke="#2f6f2c" stroke-width="7" stroke-linecap="round"/><path d="M50 52 C50 30 30 22 14 24 C14 44 30 54 50 52 Z" fill="#8fd67a" stroke="#2f6f2c" stroke-width="4" stroke-linejoin="round"/><path d="M50 46 C50 26 68 16 86 18 C86 38 70 48 50 46 Z" fill="#8fd67a" stroke="#2f6f2c" stroke-width="4" stroke-linejoin="round"/></svg>' },
     ];
     document.getElementById('games').innerHTML =
