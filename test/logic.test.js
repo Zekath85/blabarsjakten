@@ -410,3 +410,22 @@ import * as Y from '../www/games/yatzy/logic.js';
   assert.ok(hard > easy, `svår slår lätt (${hard} mot ${easy})`);
   console.log('Yatzy Robo OK');
 }
+// ---------- Yatzy: kastet i asken ----------
+import * as D from '../www/games/yatzy/dice.js';
+{
+  const tray = { l: 0, t: 0, r: 600, b: 400 }, S = 70;
+  for (let seed = 1; seed <= 20; seed++) {
+    const starts = [0,1,2,3,4].map(i => ({ x: 80 + i * 10, y: 350, vx: 300 + i * 40, vy: -500 }));
+    const sim = D.simulateTray(starts, tray, S, mulberry32(seed));
+    assert.equal(sim.frames.length, 5);
+    assert.ok(sim.length <= 180, `kastet tar ${sim.length} rutor`);
+    assert.ok(sim.frames.every(f => f.length === sim.length));
+    const end = sim.frames.map(f => f.at(-1));
+    for (const e of end) assert.ok(e.x >= S/2 && e.x <= 600 - S/2 && e.y >= S/2 && e.y <= 400 - S/2 && e.z === 0);
+    for (let a = 0; a < 5; a++) for (let b = a + 1; b < 5; b++) assert.ok(Math.hypot(end[a].x - end[b].x, end[a].y - end[b].y) >= S * 0.9, 'tärningar överlappar');
+  }
+  const r = D.startRotation(4, { rx: 1234, ry: -567 }, mulberry32(1));
+  assert.equal(((r.rx + 1234 - D.FACE[4][0]) % 360 + 360) % 360, 0);
+  assert.equal(((r.ry - 567 - D.FACE[4][1]) % 360 + 360) % 360, 0);
+  console.log('Yatzy kast OK');
+}
