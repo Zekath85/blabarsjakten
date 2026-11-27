@@ -125,4 +125,14 @@ export const sfx = {
     bear: () => { tone(110, 0.5, { type: 'triangle', vol: 0.2, to: 82 }); mallet(196, 0.5, 0.1, 0.1); }, // mullrande
   })[fig]?.(),
   win: () => notes([523, 659, 784, 1047, 784, 1047, 1319], 0.12, 0.13),
+  // Yatzy: tärningar som skramlar i bägaren (kraftigare ju mer man skakar), hälls ut, sparas och en trumvirvel.
+  rattle: (v = 0.5) => {
+    tone(120, 0.08, { vol: 0.05 + v * 0.08, to: 70 }); // bägaren
+    const n = 3 + Math.round(v * 3);
+    for (let i = 0; i < n; i++) tone(1400 + Math.random() * 1600, 0.025, { type: 'triangle', vol: 0.025 + v * 0.05, delay: Math.random() * 0.09 });
+  },
+  pour: () => { tone(500, 0.3, { type: 'triangle', vol: 0.05, to: 160 }); for (let i = 0; i < 6; i++) tone(1200 + Math.random() * 1400, 0.03, { type: 'triangle', vol: 0.05, delay: 0.05 + i * 0.03 }); },
+  hold: (on = true) => (on ? notes([784, 1047], 0.05, 0.08) : notes([1047, 784], 0.05, 0.06)),
+  almost: () => { tone(440, 0.22, { type: 'triangle', vol: 0.09, to: 392 }); tone(392, 0.4, { type: 'triangle', vol: 0.09, to: 300, delay: 0.24 }); },
+  drumroll: (ms = 1000) => { for (let t = 0; t < ms; t += 45) tone(160 + Math.random() * 30, 0.05, { type: 'triangle', vol: 0.04 + (t / ms) * 0.1, delay: t / 1000 }); },
 };

@@ -1,4 +1,5 @@
 import * as Y from './logic.js';
+import { simulateTray, startRotation, DT } from './dice.js';
 import { ART } from '../blabarsjakten/art.js';
 import { SONGS } from '../blabarsjakten/songs.js';
 import { sfx, settings, playClip, stop } from '../../shared/audio.js';
@@ -145,6 +146,7 @@ $('#previewActions').onclick = e => {
 
 // ---------- Blocket ----------
 // Små tärningar som bild för varje rad, så att man förstår raden utan att läsa.
+const PIPS = { 1: [5], 2: [3, 7], 3: [3, 5, 7], 4: [1, 3, 7, 9], 5: [1, 3, 5, 7, 9], 6: [1, 3, 4, 6, 7, 9] }; // prickarna på den stora tärningen (3 x 3)
 const PIP_AT = { 1: [[50, 50]], 2: [[28, 28], [72, 72]], 3: [[26, 26], [50, 50], [74, 74]], 4: [[28, 28], [72, 28], [28, 72], [72, 72]],
   5: [[26, 26], [74, 26], [50, 50], [26, 74], [74, 74]], 6: [[28, 24], [72, 24], [28, 50], [72, 50], [28, 76], [72, 76]] };
 export const miniDie = n => `<svg class="mini" viewBox="0 0 100 100" aria-hidden="true"><rect x="6" y="6" width="88" height="88" rx="22" fill="#fffdf6" stroke="#b8a77f" stroke-width="7"/>${
@@ -245,7 +247,7 @@ $('#scores').onclick = e => {
   if (i !== game.current && state !== 'preview') peekTimer = setTimeout(() => { renderSheet(game.current); renderScores(); }, 3000);
 };
 
-// ---------- Tur (tillfälligt: knappen slumpar tärningarna, kastet med bägaren kommer i nästa steg) ----------
+// ---------- Tur ----------
 function start() {
   sfx.good();
   music.play(SONGS[settings.get('song')] || SONGS.theme);
@@ -260,26 +262,251 @@ function startTurn() {
   dice = [1, 1, 1, 1, 1]; held = held.map(() => false); rollsLeft = 3;
   viewing = game.current;
   renderScores(); renderSheet(game.current); renderTurnbar();
+  if (!isBot()) openTray();
 }
 function renderTurnbar() {
   $('#rolls').innerHTML = [0, 1, 2].map(k => `<i class="${k < rollsLeft ? 'on' : ''}"></i>`).join('');
-  $('#hold').innerHTML = thrown() ? dice.map((d, k) => `<button class="hd ${held[k] ? 'held' : ''}" data-k="${k}" aria-label="Tärning ${d}${held[k] ? ', sparad' : ''}">${miniDie(d)}</button>`).join('') : '';
+  const c = [0, 0, 0, 0, 0, 0, 0];
+  dice.forEach(d => c[d]++);
+  $('#hold').style.setProperty('--c', me().color);
+  $('#hold').innerHTML = thrown() ? dice.map((d, k) =>
+    `<button class="hd ${held[k] ? 'held' : trayOpen ? 'away' : ''} ${c[d] >= 2 ? 'match' : ''}" data-k="${k}" aria-label="Tärning ${d}${held[k] ? ', sparad' : ''}">${miniDie(d)}</button>`).join('') : '';
   const btn = $('#cupBtn');
-  btn.disabled = !Y.canThrow(rollsLeft, held, busy) || isBot();
-  btn.textContent = 'Slumpa';
+  btn.disabled = isBot() || busy || trayOpen || !Y.canThrow(rollsLeft, held, busy);
+  btn.innerHTML = `${ICONS.dice}<span>${!thrown() ? 'Skaka' : rollsLeft > 0 ? 'Kasta igen' : 'Välj en rad'}</span>`;
 }
 $('#hold').onclick = e => {
   const b = e.target.closest('.hd');
-  if (!b || isBot() || busy || rollsLeft === 0) return;
-  held[+b.dataset.k] = !held[+b.dataset.k];
-  sfx.pop(); renderTurnbar();
+  if (!b || isBot() || busy || rollsLeft === 0 || trayOpen) return;
+  const k = +b.dataset.k;
+  held[k] = !held[k];
+  sfx.hold(held[k]); renderTurnbar();
 };
-$('#cupBtn').onclick = () => {
+$('#cupBtn').onclick = () => { if (!isBot() && Y.canThrow(rollsLeft, held, busy)) openTray(); };
+
+// ---------- Asken och bägaren ----------
+const DSIZE = () => (innerWidth < 600 ? 56 : 72);
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const CUBE_FACES = [1, 2, 3, 4, 5, 6].map(n =>
+  `<div class="face f${n}">${[1, 2, 3, 4, 5, 6, 7, 8, 9].map(c => (PIPS[n].includes(c) ? `<i style="grid-area:${Math.ceil(c / 3)}/${(c - 1) % 3 + 1}"></i>` : '')).join('')}</div>`).join('');
+// Bägaren: läder med mässingsband, ritad i SVG.
+$('#cup').innerHTML = `<svg viewBox="0 0 120 140" aria-hidden="true">
+  <defs><linearGradient id="cupL" x1="0" x2="1"><stop offset="0" stop-color="#5a2e14"/><stop offset=".35" stop-color="#9a5a2c"/><stop offset=".6" stop-color="#7a4220"/><stop offset="1" stop-color="#4a250f"/></linearGradient>
+  <linearGradient id="cupB" x1="0" x2="1"><stop offset="0" stop-color="#9a6a10"/><stop offset=".4" stop-color="#ffe08a"/><stop offset="1" stop-color="#9a6a10"/></linearGradient></defs>
+  <path d="M14 22 L26 128 Q60 138 94 128 L106 22 Z" fill="url(#cupL)" stroke="#3a1c0a" stroke-width="3"/>
+  <path d="M20 70 Q60 80 100 70 L99 82 Q60 92 21 82 Z" fill="url(#cupB)" opacity=".9"/>
+  <path d="M25 118 Q60 128 95 118 L94 126 Q60 136 26 126 Z" fill="url(#cupB)" opacity=".8"/>
+  <ellipse cx="60" cy="22" rx="46" ry="12" fill="#2a1306" stroke="url(#cupB)" stroke-width="5"/>
+  <path d="M30 36 Q34 90 38 120" stroke="rgba(255,255,255,.18)" stroke-width="6" fill="none" stroke-linecap="round"/></svg>`;
+let trayOpen = false;
+function openTray() {
+  if (trayOpen) return;
+  trayOpen = true;
+  const bar = $('#play .bar').getBoundingClientRect();
+  $('#trayLayer').style.bottom = Math.max(0, innerHeight - bar.top) + 'px';
+  $('#trayLayer').hidden = false;
+  $('#felt').innerHTML = '';
+  resetCup();
+  $('#trayHint').textContent = rollsLeft === 3 ? 'Skaka bägaren!' : rollsLeft === 1 ? 'Sista kastet!' : 'Skaka igen!';
+  $('#throwBtn').disabled = isBot();
+  renderTurnbar();
+}
+function closeTray() { trayOpen = false; $('#trayLayer').hidden = true; $('#trayLayer').classList.remove('slowmo'); }
+// Tryck bredvid asken: tillbaka till blocket (bara om man redan har kastat en gång).
+$('#trayLayer').addEventListener('click', e => {
+  if (e.target.id === 'trayLayer' && thrown() && !busy && !isBot()) { closeTray(); renderTurnbar(); }
+});
+const cup = $('#cup');
+function resetCup() { cup.className = 'cup'; cup.style.transform = ''; }
+
+// Skaka: håll på bägaren och dra fram och tillbaka. Varje vändning skramlar, kraftigare ju längre man skakar.
+let shake = null;
+cup.addEventListener('pointerdown', e => {
+  if (busy || isBot() || !Y.canThrow(rollsLeft, held, busy)) return;
+  try { cup.setPointerCapture(e.pointerId); } catch {}
+  shake = { x0: e.clientX, y0: e.clientY, lx: e.clientX, ly: e.clientY, dir: 0, n: 0, acc: 0 };
+  cup.classList.add('held');
+  $('#trayHint').textContent = 'Skaka, skaka …';
+});
+cup.addEventListener('pointermove', e => {
+  if (!shake) return;
+  const dx = e.clientX - shake.lx, dy = e.clientY - shake.ly, m = Math.abs(dx) > Math.abs(dy) ? dx : dy, d = Math.sign(m);
+  shake.acc += Math.abs(m);
+  if (d && d !== shake.dir && shake.acc > 22) {
+    shake.n++; shake.dir = d; shake.acc = 0;
+    sfx.rattle(Math.min(1, shake.n / 8));
+    cup.classList.remove('rat'); void cup.offsetWidth; cup.classList.add('rat');
+  }
+  shake.lx = e.clientX; shake.ly = e.clientY;
+  const ox = clamp(e.clientX - shake.x0, -80, 80), oy = clamp(e.clientY - shake.y0, -60, 40);
+  cup.style.transform = `translate(${ox}px, ${oy}px) rotate(${ox / 4}deg)`;
+});
+cup.addEventListener('pointerup', () => {
+  if (!shake) return;
+  const n = shake.n;
+  shake = null;
+  cup.classList.remove('held');
+  throwDice(n ? Math.min(1, n / 8) : 0.5);
+});
+cup.addEventListener('pointercancel', () => { shake = null; resetCup(); });
+// Knappen Kasta: bägaren skakar av sig själv och tärningarna hälls ut (för de minsta, och för Robo).
+$('#throwBtn').onclick = e => { e.stopPropagation(); if (!isBot()) autoThrow(); };
+async function autoThrow() {
   if (!Y.canThrow(rollsLeft, held, busy)) return;
-  dice = dice.map((d, k) => (held[k] ? d : 1 + Math.floor(Math.random() * 6)));
-  rollsLeft--;
+  busy = true;
+  $('#trayHint').textContent = 'Skaka, skaka …';
+  for (let k = 0; k < 5; k++) {
+    sfx.rattle(0.3 + k * 0.12);
+    cup.style.transform = `translate(${k % 2 ? 26 : -26}px, ${k % 2 ? -8 : 4}px) rotate(${k % 2 ? 9 : -9}deg)`;
+    await wait(120);
+  }
+  busy = false;
+  return throwDice(0.65);
+}
+
+let skip = false;
+$('#tray').addEventListener('click', e => { if (!e.target.closest('#throwBtn') && busy) skip = true; }); // ett tryck snabbspolar kastet
+
+async function throwDice(power) {
+  if (!Y.canThrow(rollsLeft, held, busy)) return resetCup();
+  busy = true; skip = false; rollsLeft--;
+  renderTurnbar();
+  const calm = settings.get('calm');
+  const idx = [0, 1, 2, 3, 4].filter(k => !held[k]);
+  const faces = idx.map(() => 1 + Math.floor(Math.random() * 6)); // slumpat och rättvist, kastet styr bara hur de rullar
+  const felt = $('#felt'), W = felt.clientWidth, H = felt.clientHeight, S = DSIZE();
+  // Bägaren tippar och tärningarna hälls ut från dess mynning.
+  cup.style.transform = '';
+  cup.classList.add('pour');
+  $('#trayHint').textContent = '';
+  sfx.pour();
+  await wait(calm ? 120 : 240);
+  const fr = felt.getBoundingClientRect(), cr = cup.getBoundingClientRect();
+  const mx = clamp(cr.left - fr.left + 10, S, W - S), my = clamp(cr.top - fr.top + cr.height * 0.4, S, H - S);
+  const r = () => Math.random();
+  const starts = idx.map((_, j) => ({ x: mx - j * 6, y: my + (j - 2) * 10, vx: -(420 + 900 * power) * (0.7 + r() * 0.6), vy: (r() - 0.65) * (300 + 800 * power) }));
+  const sim = simulateTray(starts, { l: 0, t: 0, r: W, b: H }, S, Math.random);
+  const rot = sim.frames.map((f, j) => startRotation(faces[j], f.at(-1), Math.random));
+  const final = dice.map((d, k) => (held[k] ? d : faces[idx.indexOf(k)]));
+  felt.innerHTML = idx.map(() => `<div class="tdie" style="--s:${S / 96};width:${S}px;height:${S}px"><div class="tshadow"></div><div class="tlift"><div class="cube">${CUBE_FACES}</div></div></div>`).join('');
+  const els = [...felt.children];
+  // När stannar varje tärning? (sista bildrutan den rör sig)
+  const stopAt = sim.frames.map(f => { for (let i = f.length - 1; i > 0; i--) if (f[i].z > 0 || Math.hypot(f[i].x - f[i - 1].x, f[i].y - f[i - 1].y) > 0.3) return i; return 0; });
+  // Spänning: fyra lika och den femte rullar fortfarande. Då går den sista i slow motion med trumvirvel.
+  let slow = -1, s0 = 0;
+  if (idx.length) {
+    const last = stopAt.indexOf(Math.max(...stopAt)), k = idx[last];
+    const others = final.filter((_, i) => i !== k), c = [0, 0, 0, 0, 0, 0, 0];
+    others.forEach(d => c[d]++);
+    s0 = Math.max(0, stopAt[last] - 45); // den sista biten av rullningen går i halv fart
+    if (c.includes(4) && !calm) slow = last;
+  }
+  const len = sim.length, endIdx = slow < 0 ? len - 1 : s0 + (len - 1 - s0) * 2;
+  let drum = false;
+  await new Promise(done => {
+    const t0 = performance.now();
+    let shown = -1;
+    const step = now => {
+      let i = Math.max(0, Math.floor((now - t0) / 1000 / DT));
+      if (skip) i = endIdx;
+      i = Math.min(i, endIdx);
+      els.forEach((el, j) => {
+        const n = Math.min(len - 1, j === slow && i > s0 ? s0 + Math.floor((i - s0) / 2) : i), f = sim.frames[j][n];
+        el.style.transform = `translate(${f.x - S / 2}px, ${f.y - S / 2 - f.z}px)`;
+        el.firstElementChild.style.transform = `translate(0, ${f.z}px) scale(${Math.max(0.5, 1 - f.z / 300)})`;
+        el.querySelector('.cube').style.transform = `rotateX(${rot[j].rx + f.rx}deg) rotateY(${rot[j].ry + f.ry}deg)`;
+      });
+      if (!skip) for (let n = shown + 1; n <= i; n++) { const kn = Math.max(...sim.frames.map(f => f[Math.min(len - 1, n)].knock)); if (kn) { sfx.knock(kn); break; } }
+      shown = i;
+      if (slow >= 0 && i > s0 && !drum && !skip) { drum = true; $('#trayLayer').classList.add('slowmo'); sfx.drumroll((endIdx - s0) * DT * 1000); }
+      if (i >= endIdx) return done();
+      requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  });
+  $('#trayLayer').classList.remove('slowmo');
+  dice = final;
+  sfx.land();
+  // Tärningar med samma siffra lyser upp.
+  const c = [0, 0, 0, 0, 0, 0, 0];
+  dice.forEach(d => c[d]++);
+  els.forEach((el, j) => c[faces[j]] >= 2 && el.classList.add('match'));
+  await celebrate(slow >= 0);
+  await wait(calm ? 250 : 550);
+  await glideToHold(els, idx);
+  closeTray();
+  busy = false;
   renderTurnbar(); renderSheet(game.current);
-};
+}
+
+// Firande när tärningarna har landat: Yatzy, stege, kåk och fyrtal.
+async function celebrate(wasClose) {
+  const free = id => !(id in game.sheets[game.current]);
+  if (Y.score('yatzy', dice) > 0) {
+    call('Yatzy!', 'big');
+    sfx.six(); setTimeout(() => sfx.win(), 250);
+    if (!settings.get('calm')) { fireworks(2600); document.body.classList.remove('quake'); void document.body.offsetWidth; document.body.classList.add('quake'); }
+    return wait(1400);
+  }
+  if (wasClose) sfx.almost();
+  const best = [['large', 'Stor stege!'], ['small', 'Liten stege!'], ['house', 'Kåk!'], ['four', 'Fyrtal!']].find(([id]) => free(id) && Y.score(id, dice) > 0);
+  if (best) { call(best[1]); sfx.good(); return wait(700); }
+}
+function call(text, cls = '') {
+  const el = document.createElement('div');
+  el.className = `call ${cls}`;
+  el.textContent = text;
+  $('#tray').append(el);
+  setTimeout(() => el.remove(), 1600);
+}
+
+// Tärningarna glider från asken ner till raden med tärningar under blocket.
+async function glideToHold(els, idx) {
+  trayOpen = false; renderTurnbar(); trayOpen = true; // rita raden med de nya tärningarna (osynliga tills tärningarna är framme)
+  const slots = [...document.querySelectorAll('#hold .hd')];
+  idx.forEach(k => slots[k]?.classList.add('arriving'));
+  const fr = $('#felt').getBoundingClientRect(), S = DSIZE();
+  els.forEach((el, j) => {
+    const t = slots[idx[j]]?.getBoundingClientRect();
+    if (!t) return;
+    el.style.transition = 'transform .38s cubic-bezier(.4,.1,.3,1)';
+    el.style.transform = `translate(${t.left - fr.left + t.width / 2 - S / 2}px, ${t.top - fr.top + t.height / 2 - S / 2}px) scale(${t.width / S})`;
+    el.querySelector('.tshadow').style.opacity = 0;
+  });
+  await wait(settings.get('calm') ? 150 : 400);
+  slots.forEach(s => s.classList.remove('arriving'));
+}
+
+// Fyrverkeri (samma som i Blåbärsjakten).
+function fireworks(ms) {
+  const cv = $('#fx'), g = cv.getContext('2d');
+  cv.width = innerWidth; cv.height = innerHeight; cv.hidden = false;
+  const parts = [], t0 = performance.now(), COL = ['#ffe08a', '#ff6e6e', '#8fd3ff', '#b2ff59', '#e1a6ff', '#fff'];
+  let last = 0;
+  const frame = t => {
+    if (t - last > 420 && t - t0 < ms - 900) {
+      last = t;
+      sfx.pop();
+      const x = cv.width * (0.15 + Math.random() * 0.7), y = cv.height * (0.15 + Math.random() * 0.35), col = COL[Math.floor(Math.random() * COL.length)];
+      for (let i = 0; i < 46; i++) {
+        const a = Math.random() * Math.PI * 2, v = 1.5 + Math.random() * 4.5;
+        parts.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: 1, col });
+      }
+    }
+    g.clearRect(0, 0, cv.width, cv.height);
+    for (let i = parts.length - 1; i >= 0; i--) {
+      const p = parts[i];
+      p.vy += 0.07; p.vx *= 0.99; p.x += p.vx; p.y += p.vy; p.life -= 0.013;
+      if (p.life <= 0) { parts.splice(i, 1); continue; }
+      g.globalAlpha = p.life;
+      g.fillStyle = p.col;
+      g.fillRect(p.x, p.y, 5, 5);
+    }
+    if (t - t0 < ms || parts.length) requestAnimationFrame(frame);
+    else cv.hidden = true;
+  };
+  requestAnimationFrame(frame);
+}
 
 function afterFill() {
   if (Y.matchOver(game)) { state = 'over'; renderScores(); return; }

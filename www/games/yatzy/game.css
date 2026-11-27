@@ -124,3 +124,59 @@ body.rules-open .icon-btn { display: none; }
 }
 /* Mobil med många spelare: bara den som har tur visar namnet, de andra visar figur och poäng. */
 @media (max-width: 600px) { .scores.many .chip:not(.on) b { display: none; } .scores.many .chip { flex: 0 1 auto; } .scores.many .chip.on { flex: 1 1 auto; } }
+
+/* ---------- Asken: träram med grön filt. Tärningarna hälls ut ur bägaren i hörnet. ---------- */
+.tray-layer { position: fixed; left: 0; right: 0; top: 0; z-index: 30; display: grid; place-items: center; padding: 84px 16px 10px; background: rgba(5, 12, 9, .55); animation: fadeIn .2s; }
+.tray { position: relative; width: min(780px, 100%); height: min(470px, 100%); border-radius: 30px; padding: 18px;
+  background: repeating-linear-gradient(95deg, rgba(60,30,10,.16) 0 3px, transparent 3px 14px), linear-gradient(160deg, #c98a4b, #8a5124 55%, #5b3417);
+  box-shadow: inset 0 3px 0 rgba(255,230,190,.45), inset 0 -6px 12px rgba(0,0,0,.35), 0 0 0 3px #3a1c0a, 0 26px 50px rgba(0,0,0,.6); animation: trayIn .35s cubic-bezier(.2,.9,.3,1.2); }
+@keyframes trayIn { from { transform: scale(.85) translateY(30px); opacity: 0; } }
+.felt { position: relative; width: 100%; height: 100%; border-radius: 16px;
+  background: radial-gradient(ellipse at 45% 35%, #3fa463, #23784a 60%, #175a36); box-shadow: inset 0 6px 18px rgba(0,0,0,.55), inset 0 0 0 3px rgba(0,0,0,.25); }
+.felt::after { content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; opacity: .18;
+  background: repeating-linear-gradient(45deg, rgba(255,255,255,.25) 0 1px, transparent 1px 4px); }
+.tray-hint { position: absolute; left: 50%; top: 26px; transform: translateX(-50%); padding: 4px 18px; border-radius: 999px; background: rgba(0,0,0,.35); color: #fff4c9; font-size: 22px; font-weight: 900; pointer-events: none; white-space: nowrap; }
+.throw-btn { position: absolute; left: 30px; bottom: 30px; min-width: 130px; }
+.cup { position: absolute; right: 34px; bottom: 30px; width: 112px; height: 130px; cursor: grab; touch-action: none; transform-origin: 30% 25%; transition: transform .12s; z-index: 3;
+  filter: drop-shadow(0 10px 10px rgba(0,0,0,.45)); }
+.cup svg { width: 100%; height: 100%; display: block; }
+.cup.held { cursor: grabbing; transition: none; }
+.cup:not(.held):not(.pour) { animation: cupIdle 2.2s ease-in-out infinite; }
+@keyframes cupIdle { 50% { transform: rotate(-4deg) translateY(-4px); } }
+.cup.rat svg { animation: rattle .12s; }
+@keyframes rattle { 30% { transform: rotate(-6deg) scale(1.03); } 70% { transform: rotate(6deg); } }
+.cup.pour { transition: transform .24s cubic-bezier(.5,0,.5,1); transform: translate(-30px, -40px) rotate(-115deg) !important; }
+
+/* Tärningarna i asken: samma kub som i Blåbärsjakten, i mindre storlek (--s). */
+.tdie { position: absolute; left: 0; top: 0; will-change: transform; z-index: 2; }
+.tlift { width: 96px; height: 96px; transform-origin: 0 0; perspective: 600px; }
+.tdie .tlift > .cube { transform-origin: 48px 48px; }
+.tdie > .tlift { transform: none; }
+.tdie .tlift { scale: var(--s); }
+.tshadow { position: absolute; left: 6%; top: 60%; width: 88%; height: 50%; border-radius: 50%; background: radial-gradient(ellipse, rgba(0,0,0,.55), transparent 70%); transition: opacity .3s; }
+.tdie.match .face { box-shadow: inset 0 0 0 3px #ffe08a, 0 0 18px #ffe08a; }
+.hd.away { opacity: .25; transform: scale(.85); }
+.hd.arriving { visibility: hidden; }
+.tray-layer.slowmo { background: radial-gradient(circle, rgba(5,12,9,.35), rgba(5,12,9,.85)); }
+
+/* Utrop: "Yatzy!", "Kåk!" … */
+.call { position: absolute; left: 50%; top: 45%; z-index: 5; transform: translate(-50%, -50%); padding: 6px 26px; border-radius: 999px; pointer-events: none;
+  background: linear-gradient(#ffe08a, #f4a923); color: #4a2a00; border: 4px solid #fff; font-size: 40px; font-weight: 900; box-shadow: 0 10px 30px rgba(0,0,0,.45); animation: callPop 1.6s ease-out forwards; }
+.call.big { font-size: 72px; padding: 10px 40px; background: linear-gradient(#fff3b0, #ffb300); }
+@keyframes callPop { 0% { transform: translate(-50%, -50%) scale(.3); opacity: 0; } 15% { transform: translate(-50%, -50%) scale(1.15); opacity: 1; } 75% { transform: translate(-50%, -50%) scale(1); opacity: 1; } 100% { transform: translate(-50%, -90%) scale(.9); opacity: 0; } }
+body.quake #trayLayer .tray { animation: quake .5s; }
+@keyframes quake { 20% { transform: translate(-8px, 4px) rotate(-1deg); } 40% { transform: translate(8px, -4px) rotate(1deg); } 60% { transform: translate(-5px, 2px); } 80% { transform: translate(5px, -2px); } }
+#cupBtn { display: inline-flex; align-items: center; gap: 8px; }
+#cupBtn svg { width: 30px; height: 30px; }
+body.calm .cup:not(.held):not(.pour) { animation: none; }
+
+@media (max-width: 600px) {
+  .tray-layer { padding: 84px 8px 8px; }
+  .tray { padding: 12px; border-radius: 22px; height: min(420px, 100%); }
+  .cup { width: 84px; height: 98px; right: 18px; bottom: 18px; }
+  .throw-btn { left: 16px; bottom: 18px; min-width: 0; }
+  .tray-hint { font-size: 18px; top: 16px; }
+  .call { font-size: 30px; } .call.big { font-size: 52px; }
+}
+.tray-hint:empty { display: none; }
+.cup.pour { z-index: 1; }
