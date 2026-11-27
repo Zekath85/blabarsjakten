@@ -429,3 +429,10 @@ import * as D from '../www/games/yatzy/dice.js';
   assert.equal(((r.ry - 567 - D.FACE[4][1]) % 360 + 360) % 360, 0);
   console.log('Yatzy kast OK');
 }
+{
+  assert.equal(Y.canThrow(2, [true,true,true,true,true], false), false);
+  assert.equal(Y.canThrow(0, [false,false,false,false,false], false), false);
+  assert.equal(Y.canThrow(1, [true,false,true,true,true], false), true);
+  assert.equal(Y.canThrow(3, [false,false,false,false,false], true), false);
+  console.log('Yatzy canThrow OK');
+}

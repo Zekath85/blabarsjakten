@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="sv">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+  <title>Yatzy</title>
+  <link rel="stylesheet" href="../../shared/style.css">
+  <link rel="manifest" href="../../manifest.webmanifest">
+  <link rel="icon" href="../../icons/icon-192.png">
+  <meta name="theme-color" content="#15241d">
+  <script type="module" src="../../shared/pwa.js"></script>
+  <!-- Samma utseende som de andra spelen: vi lånar knappar, tärning, poängpiller och rutor från Blåbärsjakten. -->
+  <link rel="stylesheet" href="../blabarsjakten/game.css">
+  <link rel="stylesheet" href="game.css">
+</head>
+<body>
+  <button class="icon-btn" id="backBtn" style="left:12px" aria-label="Till menyn">
+    <svg viewBox="0 0 40 40"><path d="M24 8 L12 20 L24 32" fill="none" stroke="#fff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </button>
+  <button class="icon-btn" id="soundBtn" style="right:12px" aria-label="Inställningar och ljud"></button>
+  <button class="icon-btn" id="rulesBtn" style="right:96px" aria-label="Så spelar man">
+    <svg viewBox="0 0 40 40"><circle cx="20" cy="20" r="15" fill="rgba(255,255,255,.18)" stroke="#fff" stroke-width="3"/><path d="M14.5 15.5 Q14.5 9.5 20.5 9.5 Q26.5 9.5 26.5 15 Q26.5 18.5 22.5 20.5 Q20.5 21.5 20.5 24.5" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/><circle cx="20.5" cy="30.5" r="2.6" fill="#fff"/></svg>
+  </button>
+
+  <!-- 1. Välj spelare och hur mycket hjälp var och en vill ha -->
+  <section class="screen" id="setup">
+    <div class="setup-inner">
+      <h1 class="title">Yatzy</h1>
+      <div class="figures" id="figures"></div>
+      <h2>Hur många spelare?</h2>
+      <div class="counts" id="counts"></div>
+      <div class="names" id="names"></div>
+      <p class="help-note">Stjärnorna visar hur mycket hjälp spelaren får i blocket.</p>
+      <button class="btn green icon-right" id="toPickBtn" data-icon="play">Vidare</button>
+    </div>
+  </section>
+
+  <!-- 2. Välj datorns nivå och antal matcher. Sedan spelet: blocket fyller skärmen. -->
+  <section class="screen" id="play" hidden>
+    <div class="scores" id="scores"></div>
+    <div class="sheet-wrap" id="sheetWrap"><div class="sheet" id="sheet"></div></div>
+    <footer class="bar">
+      <div class="actions" id="previewActions">
+        <div class="sizes" id="levels" aria-label="Hur svår datorn är"></div>
+        <div class="sizes" id="rounds" aria-label="Först till så många vunna matcher"></div>
+        <button class="btn green icon-right" id="startBtn" data-icon="play">Starta</button>
+      </div>
+      <div class="turnbar" id="turnbar" hidden>
+        <div class="hold" id="hold"></div>
+        <div class="rolls" id="rolls" aria-label="Kast kvar"></div>
+        <button class="btn green" id="cupBtn"></button>
+      </div>
+    </footer>
+  </section>
+
+  <!-- Asken: tärningarna hälls ut här ur bägaren -->
+  <div class="tray-layer" id="trayLayer" hidden>
+    <div class="tray" id="tray">
+      <div class="felt" id="felt"></div>
+      <div class="cup" id="cup" aria-label="Skaka bägaren"></div>
+      <div class="tray-hint" id="trayHint">Skaka bägaren!</div>
+      <button class="btn blue throw-btn" id="throwBtn" data-icon="dice">Kasta</button>
+    </div>
+  </div>
+
+  <!-- Turbanner: vems tur det är -->
+  <div class="turn-banner" id="turnBanner" hidden></div>
+
+  <!-- Matchen klar: prispallen (samma som i Blåbärsjakten) -->
+  <div class="overlay" id="podium" hidden>
+    <div class="pod-rays"></div>
+    <div class="curtain left"></div><div class="curtain right"></div>
+    <svg class="bunting" viewBox="0 0 1000 80" preserveAspectRatio="none">
+      <path d="M0 6 Q500 60 1000 6" fill="none" stroke="#fff4c9" stroke-width="3"/>
+      <g id="flags"></g>
+    </svg>
+    <div class="confetti" id="confetti"></div>
+    <h1 class="title" id="winTitle">Prispallen</h1>
+    <p class="win-text" id="winText"></p>
+    <div class="podium" id="podiumList"></div>
+    <div class="row">
+      <button class="btn green" id="nextBtn" data-icon="play" hidden>Nästa match</button>
+      <button class="btn green" id="againBtn" data-icon="refresh" hidden>Nytt spel</button>
+      <button class="btn blue" id="menuBtn" data-icon="home">Till menyn</button>
+    </div>
+  </div>
+  <canvas id="fx" hidden></canvas>
+
+  <!-- Figurskapare (samma som i de andra spelen) -->
+  <div class="overlay" id="lookPanel" hidden>
+    <div class="panel look-panel">
+      <div class="look-preview" id="lookPreview"></div>
+      <div class="look-rows" id="lookRows"></div>
+      <button class="btn green look-done" id="lookDoneBtn">Klar!</button>
+    </div>
+  </div>
+
+  <!-- Så spelar man (öppnas av sig själv första gången) -->
+  <div class="overlay" id="rules" hidden>
+    <div class="panel">
+      <div class="rules-head">
+        <h2>Så spelar man Yatzy</h2>
+        <button class="btn blue round" id="readRulesBtn" data-icon="speaker" aria-label="Läs upp reglerna" title="Läs upp"></button>
+      </div>
+      <div id="rulesText">
+        <p><b>Målet:</b> få flest poäng. Alla har ett eget block med femton rader.</p>
+        <p><b>Din tur:</b> skaka bägaren och släpp, eller tryck på Kasta. Du får kasta tre gånger.</p>
+        <p><b>Spara tärningar:</b> tryck på en tärning så sparas den. Sparade tärningar kastas inte om. Tryck igen för att släppa den.</p>
+        <p><b>Fyll i en rad:</b> efter dina kast trycker du på en rad i blocket. Varje rad får bara fyllas i en gång. Passar inget får du stryka en rad. Då får den noll poäng.</p>
+        <p><b>Övre delen:</b> ettor till sexor. Du får summan av den siffran. Fem femmor blir tjugofem poäng.</p>
+        <p><b>Bonus:</b> får du sextiotre poäng eller mer i övre delen får du femtio poäng extra.</p>
+        <p><b>Undre delen:</b> ett par, två par, tretal och fyrtal ger summan av tärningarna som hör ihop. Liten stege är ett till fem och ger femton. Stor stege är två till sex och ger tjugo. Kåk är ett tretal och ett par, och ger summan av alla tärningar. Chans är summan av alla tärningar. Yatzy är fem lika och ger femtio poäng.</p>
+        <p><b>Hjälp:</b> varje spelare väljer hur mycket hjälp den vill ha. Med en stjärna visar blocket vad varje rad skulle ge. Med två stjärnor glittrar det också vid några bra rader. Vilken rad du väljer bestämmer du själv.</p>
+        <p><b>Matcher:</b> när alla har fyllt sina block vinner den med flest poäng. Du väljer hur många vunna matcher som behövs för att vinna spelet.</p>
+        <p><b>Mot datorn:</b> välj en nivå: lätt, medel eller svår.</p>
+      </div>
+      <div class="row">
+        <button class="btn green" id="closeRulesBtn" data-icon="check">Nu kör vi!</button>
+      </div>
+      <p class="credits">Röst: ElevenLabs (elevenlabs.io)</p>
+    </div>
+  </div>
+
+  <!-- Inställningar: musik, låtar, ljud och berättaren -->
+  <div class="overlay" id="soundPanel" hidden>
+    <div class="panel">
+      <h2>Inställningar</h2>
+      <h3 class="panel-sub">Musik</h3>
+      <label class="toggle"><input type="checkbox" data-pref="music"><span></span>Musik</label>
+      <div class="songs" id="songList"></div>
+      <label class="volume" aria-label="Musikens volym"><span data-icon="speaker"></span><input type="range" id="musicVol" min="0" max="1" step="0.05"></label>
+      <h3 class="panel-sub">Ljud</h3>
+      <label class="toggle"><input type="checkbox" data-pref="sfx"><span></span>Ljudeffekter</label>
+      <label class="toggle"><input type="checkbox" data-pref="dice"><span></span>Berättaren säger vad som händer</label>
+      <label class="toggle"><input type="checkbox" data-pref="calm"><span></span>Lugnt läge (färre rörelser, bra för äldre plattor)</label>
+      <div class="row"><button class="btn green" id="closeSoundBtn">Klar</button></div>
+    </div>
+  </div>
+
+  <script type="module" src="game.js"></script>
+</body>
+</html>

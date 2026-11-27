@@ -126,3 +126,5 @@ export function botPick(sheet, dice, level, rnd = Math.random) {
   if (score(top, dice) > 0) return top;
   return free.reduce((a, b) => (TYPICAL[b] < TYPICAL[a] ? b : a)); // allt ger 0: stryk den rad som brukar ge minst
 }
+// Får man kasta? Kast kvar, minst en tärning som inte är sparad, och inget annat pågår.
+export const canThrow = (rollsLeft, held, busy) => rollsLeft > 0 && held.includes(false) && !busy;

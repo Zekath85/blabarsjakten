@@ -1,0 +1,126 @@
+/* Yatzy. Resten av utseendet (knappar, poängpiller, rutor, prispall, tärning) kommer från ../blabarsjakten/game.css. */
+body { background: radial-gradient(circle at 50% 20%, #2f5a45, #0f1f18 75%); }
+.scores { padding-right: 180px; }
+.scores .chip { cursor: pointer; font: inherit; color: inherit; }
+.scores .chip.viewing:not(.on) { opacity: 1; box-shadow: 0 0 0 3px #fff4c9; }
+
+/* ---------- Välj spelare: hjälp per spelare ---------- */
+.help-pick { display: flex; gap: 4px; padding: 3px; border-radius: 14px; background: rgba(0,0,0,.08); }
+.help-opt { min-width: 44px; height: 44px; padding: 0 6px; border-radius: 11px; display: flex; align-items: center; justify-content: center; gap: 1px; background: transparent; }
+.help-opt svg { width: 20px; height: 20px; }
+.help-opt .no-star { width: 18px; height: 18px; border-radius: 50%; border: 3px dashed #b8a77f; }
+.help-opt.on { background: #fff; box-shadow: 0 3px 0 var(--gold-dark), inset 0 0 0 2px var(--gold-2); }
+.help-note { margin: -4px 0 0; font-size: 16px; opacity: .8; text-align: center; }
+
+/* ---------- Blocket: som ett papper ---------- */
+.sheet-wrap { overflow-y: auto; overscroll-behavior: contain; padding: 4px 16px 16px; -webkit-overflow-scrolling: touch; }
+.sheet { position: relative; width: min(620px, 100%); margin: 0 auto; padding: 10px 14px 14px; border-radius: 18px; color: var(--ink);
+  background:
+    linear-gradient(90deg, transparent 54px, rgba(220, 80, 80, .35) 54px 56px, transparent 56px),
+    linear-gradient(#fffdf4, #f6efdb);
+  box-shadow: 0 0 0 4px var(--c, #fff4c9), 0 14px 34px rgba(0,0,0,.45); transform-origin: 50% 0; }
+.sheet.flip { animation: pageTurn .5s ease-in-out; }
+body.calm .sheet.flip { animation: fadeIn .3s; }
+@keyframes pageTurn { 0% { transform: perspective(1200px) rotateX(0); } 45% { transform: perspective(1200px) rotateX(-75deg); opacity: .4; } 55% { transform: perspective(1200px) rotateX(75deg); opacity: .4; } 100% { transform: perspective(1200px) rotateX(0); } }
+@keyframes fadeIn { from { opacity: 0; } }
+.sheet.peek::after { content: "Tittar"; position: absolute; right: 14px; top: 14px; padding: 2px 10px; border-radius: 999px; background: var(--c); color: #fff; font-weight: 800; font-size: 14px; }
+
+.sheet-head { display: flex; align-items: center; gap: 10px; padding: 4px 4px 10px; border-bottom: 3px solid var(--c, #c9b98c); margin-bottom: 4px; }
+.sheet-face { width: 44px; height: 44px; border-radius: 50%; overflow: hidden; background: #fff; border: 3px solid var(--c); flex: none; }
+.sheet-face svg { width: 100%; height: 100%; display: block; }
+.sheet-head b { font-size: 24px; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sheet-total { font-size: 30px; font-weight: 900; color: var(--c); }
+
+.group { padding: 4px 0; border-bottom: 2px solid #d9cba3; }
+.srow { position: relative; width: 100%; display: grid; grid-template-columns: 52px 1fr 70px; align-items: center; gap: 8px; min-height: 48px; padding: 2px 4px;
+  border: 0; border-bottom: 1px solid rgba(160, 140, 100, .28); background: transparent; color: inherit; font: inherit; text-align: left; border-radius: 10px; }
+.srow .pic { display: flex; flex-wrap: wrap; gap: 1px; align-items: center; justify-content: flex-start; width: 52px; }
+.srow .pic .mini { width: 16px; height: 16px; }
+.srow[data-id="ones"] .pic .mini, .srow[data-id="twos"] .pic .mini, .srow[data-id="threes"] .pic .mini,
+.srow[data-id="fours"] .pic .mini, .srow[data-id="fives"] .pic .mini, .srow[data-id="sixes"] .pic .mini, .srow .pic .q { width: 30px; height: 30px; }
+.srow .pic > svg:not(.mini) { width: 26px; height: 26px; }
+.srow .name { font-size: 21px; font-weight: 800; display: flex; flex-direction: column; line-height: 1.15; }
+.srow .name small { font-size: 14px; font-weight: 700; opacity: .7; }
+.srow .val { justify-self: end; min-width: 56px; height: 40px; padding: 0 8px; display: grid; place-items: center; font-size: 26px; font-weight: 900;
+  border-radius: 10px; font-family: "Comic Sans MS", "Chalkboard SE", inherit; color: #1d3f8a; }
+.srow.free .val { background: rgba(255,255,255,.7); box-shadow: inset 0 0 0 2px #e2d6b4; }
+.srow .val i { font-style: normal; color: #9a8b66; opacity: .85; font-family: inherit; }
+.srow.zero .val i { opacity: .4; }
+.srow.zero .name { opacity: .55; }
+.srow .val s { color: #b04040; opacity: .8; }
+.srow.done .name { opacity: .8; }
+.srow.pick { cursor: pointer; }
+.srow.pick:active { background: rgba(255, 213, 79, .35); }
+.srow.pick .val { box-shadow: inset 0 0 0 2px var(--c); }
+.srow.star { background: linear-gradient(90deg, rgba(255, 224, 138, .55), rgba(255, 224, 138, 0) 80%); }
+.srow .glitter { position: absolute; left: 30px; top: 2px; width: 22px; height: 22px; pointer-events: none; animation: glitter 1.6s ease-in-out infinite; }
+.srow .glitter svg { width: 100%; height: 100%; filter: drop-shadow(0 0 4px #ffe08a); }
+@keyframes glitter { 0%, 100% { transform: scale(.7) rotate(0); opacity: .7; } 50% { transform: scale(1.15) rotate(20deg); opacity: 1; } }
+body.calm .srow .glitter { animation: none; }
+.srow.filled .val { animation: fillPop .5s cubic-bezier(.2,.9,.3,1.4); background: #fff3c4; }
+@keyframes fillPop { 40% { transform: scale(1.35); } }
+.srow.sum, .srow.bonus, .srow.grand { cursor: default; }
+.srow.sum .name, .srow.grand .name { font-size: 18px; text-transform: uppercase; letter-spacing: .04em; opacity: .75; }
+.srow.grand { border-bottom: 0; margin-top: 4px; }
+.srow.grand .val { font-size: 32px; color: var(--c); }
+.srow.bonus .pic svg { width: 28px; height: 28px; filter: grayscale(1) opacity(.5); }
+.srow.bonus.got .pic svg { filter: none; animation: glitter 1.6s ease-in-out infinite; }
+.meter { display: block; width: min(220px, 100%); height: 8px; margin-top: 4px; border-radius: 99px; background: #e7dcbc; overflow: hidden; }
+.meter i { display: block; height: 100%; border-radius: 99px; background: linear-gradient(90deg, #ffd54f, #f4a923); transition: width .6s; }
+.srow.bonus.got .meter i { background: linear-gradient(90deg, #81c784, #388e3c); }
+
+/* ---------- Nedre raden under turen: tärningarna, kast kvar och bägarknappen ---------- */
+.turnbar { display: flex; align-items: center; justify-content: center; gap: 16px; width: 100%; }
+.hold { display: flex; gap: 10px; min-height: 64px; }
+.hd { width: 62px; height: 62px; padding: 0; border-radius: 16px; background: transparent; transition: transform .2s; position: relative; }
+.hd .mini { width: 100%; height: 100%; display: block; filter: drop-shadow(0 4px 4px rgba(0,0,0,.35)); }
+.hd.held { transform: translateY(-8px); }
+.hd.held::after { content: ""; position: absolute; inset: -5px; border-radius: 20px; border: 4px solid var(--c, #ffd54f); box-shadow: 0 0 12px var(--c, #ffd54f); }
+.hd.match .mini { animation: matchPulse 1.2s ease-in-out infinite; }
+@keyframes matchPulse { 50% { filter: drop-shadow(0 0 10px #ffe08a); } }
+body.calm .hd.match .mini { animation: none; }
+.rolls { display: flex; gap: 6px; }
+.rolls i { width: 14px; height: 14px; border-radius: 50%; background: rgba(255,255,255,.18); border: 2px solid rgba(255,255,255,.4); }
+.rolls i.on { background: #ffd54f; border-color: #fff4c9; box-shadow: 0 0 8px #ffd54f; }
+#cupBtn { min-width: 170px; }
+
+@media (max-width: 600px) {
+  .scores { padding-right: 8px; }
+  .sheet-wrap { padding: 2px 8px 10px; }
+  .sheet { padding: 8px 8px 10px; }
+  .srow { grid-template-columns: 38px 1fr 58px; min-height: 42px; }
+  .srow .name { font-size: 18px; }
+  .srow .val { font-size: 22px; min-width: 48px; height: 34px; }
+  .help-opt { min-width: 36px; height: 40px; }
+  .help-opt svg { width: 15px; height: 15px; }
+  .name-row { flex-wrap: wrap; }
+  .help-pick { width: 100%; justify-content: center; }
+  .turnbar { gap: 8px; flex-wrap: wrap; }
+  .hd { width: 50px; height: 50px; }
+  .hold { gap: 6px; min-height: 52px; }
+  #cupBtn { min-width: 0; flex: 1; }
+}
+
+/* Val före start: datorns nivå och antal matcher (samma som Fia med knuff och Fyra i rad). */
+.bar { justify-content: center; }
+#previewActions { flex-wrap: wrap; justify-content: center; gap: 10px 14px; }
+#previewActions .sizes { margin: 0; align-items: center; }
+.sizes .lbl { padding: 0 8px 0 10px; font-size: 16px; font-weight: 800; opacity: .85; white-space: nowrap; }
+.size.round-n { min-width: 56px; padding: 8px 6px; font-size: 26px; font-weight: 900; }
+.size.level .heads { display: flex; height: 34px; align-items: center; }
+.size.level .heads svg { width: 28px; height: 28px; margin: 0 -4px; }
+.chip .wins { display: inline-flex; align-items: center; gap: 2px; font-weight: 900; color: #ffe08a; }
+.chip .wins svg { width: 22px; height: 22px; }
+body.rules-open .icon-btn { display: none; }
+.rules-head { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+.rules-head h2 { margin: 0; margin-right: auto; }
+.rules-head .btn.round { width: 60px; min-height: 60px; flex: none; }
+.rules-head .btn.round svg.icon { width: 30px; height: 30px; }
+.win-text { margin: -6px 0 6px; font-size: 22px; font-weight: 800; text-align: center; position: relative; z-index: 2; }
+@media (max-width: 760px) {
+  .scores { padding: 92px 8px 6px; } .scores.many .chip { overflow: hidden; }
+  .chip { font-size: 16px; gap: 5px; padding-right: 10px; } .chip .wins { font-size: 20px; } .chip .wins svg { width: 20px; height: 20px; }
+  .size.round-n { min-width: 44px; padding: 8px 2px; } .sizes .lbl { padding: 0 4px 0 6px; font-size: 14px; } #previewActions .sizes { max-width: 100%; }
+}
+/* Mobil med många spelare: bara den som har tur visar namnet, de andra visar figur och poäng. */
+@media (max-width: 600px) { .scores.many .chip:not(.on) b { display: none; } .scores.many .chip { flex: 0 1 auto; } .scores.many .chip.on { flex: 1 1 auto; } }

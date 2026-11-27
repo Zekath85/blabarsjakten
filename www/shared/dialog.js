@@ -6,20 +6,26 @@ const VOICE = new URL('voice/quit.mp3', import.meta.url).href;
 const SAY = 'Vill du avbryta spelet och gå till menyn?';
 
 export function confirmQuit(gameName) {
+  return ask(`Vill du avbryta ${gameName}?`, 'Då går du tillbaka till menyn.', VOICE, SAY);
+}
+
+// Allmän ja/nej-fråga i samma stil. voice/say: inspelad fråga (och texten om filen saknas). yesColor: 'red' eller 'green'.
+export function ask(title, text, voice, say, yesColor = 'red') {
   const box = document.createElement('div');
   box.className = 'dialog';
   box.innerHTML = `<div class="dialog-card" role="alertdialog" aria-modal="true">
       <div class="dialog-icon"><svg viewBox="0 0 40 40"><rect x="11" y="9" width="6" height="22" rx="3" fill="#fff"/><rect x="23" y="9" width="6" height="22" rx="3" fill="#fff"/></svg></div>
       <h2></h2>
-      <p>Då går du tillbaka till menyn.</p>
+      <p></p>
       <div class="dialog-buttons">
         <button class="btn gray" data-v="no">Nej</button>
-        <button class="btn red" data-v="yes">Ja</button>
+        <button class="btn ${yesColor}" data-v="yes">Ja</button>
       </div>
     </div>`;
-  box.querySelector('h2').textContent = `Vill du avbryta ${gameName}?`;
+  box.querySelector('h2').textContent = title;
+  box.querySelector('p').textContent = text;
   document.body.append(box);
-  playClip(VOICE, SAY, undefined, 'cards');
+  if (voice) playClip(voice, say, undefined, 'cards');
   return new Promise(done => {
     box.onclick = e => {
       const v = e.target.closest('[data-v]')?.dataset.v;
