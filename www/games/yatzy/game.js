@@ -250,20 +250,69 @@ $('#scores').onclick = e => {
 // ---------- Tur ----------
 function start() {
   sfx.good();
+  game = Y.createGame(players, target);
+  game.starter = 0;
+  beginPlay();
+}
+$('#startBtn').onclick = start;
+// Gemensamt för ny match och fortsatt match.
+function beginPlay() {
   music.play(SONGS[settings.get('song')] || SONGS.theme);
   $('#previewActions').hidden = true;
   $('#turnbar').hidden = false;
+  show('play');
   state = 'turn';
   startTurn();
 }
-$('#startBtn').onclick = start;
 
-function startTurn() {
-  dice = [1, 1, 1, 1, 1]; held = held.map(() => false); rollsLeft = 3;
+let botFast = false; // ett tryck under Robos tur snabbspolar resten av turen
+async function startTurn() {
+  dice = [1, 1, 1, 1, 1]; held = held.map(() => false); rollsLeft = 3; botFast = false;
   viewing = game.current;
   renderScores(); renderSheet(game.current); renderTurnbar();
-  if (!isBot()) openTray();
+  const sh = $('#sheet');
+  sh.classList.remove('flip'); void sh.offsetWidth; sh.classList.add('flip'); // bladet vänds till nästa spelare
+  turnBanner();
+  if (isBot()) return botTurn();
+  await wait(settings.get('calm') ? 300 : 1000);
+  if (state === 'turn' && !isBot() && !thrown()) openTray();
 }
+// Spelarens ansikte stort i mitten en kort stund (samma som i Blåbärsjakten).
+function turnBanner() {
+  if (players.length < 2) return;
+  const b = $('#turnBanner'), p = me();
+  b.style.setProperty('--c', p.color);
+  b.innerHTML = `<span>${figure(p)}</span><b>${esc(p.name)}</b>`;
+  b.hidden = false;
+  b.style.animation = 'none'; void b.offsetWidth; b.style.animation = '';
+  sfx.turn(game.current);
+  setTimeout(() => (b.hidden = true), 1300);
+}
+
+// Robo: kastar, sparar tärningar efter sin nivå och väljer en rad. Lagom takt, och ett tryck snabbspolar.
+const botWait = ms => wait(botFast ? Math.min(ms, 80) : ms);
+async function botTurn() {
+  const g0 = game, who = game.current;
+  const still = () => state === 'turn' && game === g0 && game.current === who;
+  await botWait(1300);
+  for (let t = 0; t < 3 && still(); t++) {
+    openTray();
+    await botWait(350);
+    if (botFast) skip = true;
+    await autoThrow();
+    if (!still() || rollsLeft === 0) break;
+    const h = Y.botHold(game.sheets[who], dice, level);
+    if (h.every(Boolean)) break; // nöjd: kastar inte mer
+    await botWait(500);
+    for (let k = 0; k < 5; k++) if (h[k] !== held[k]) { held[k] = h[k]; sfx.hold(h[k]); renderTurnbar(); await botWait(260); }
+    await botWait(500);
+  }
+  if (!still()) return;
+  const id = Y.botPick(game.sheets[who], dice, level);
+  await botWait(800);
+  if (still()) await commitRow(id);
+}
+document.addEventListener('pointerdown', () => { if (isBot()) { botFast = true; skip = true; } });
 function renderTurnbar() {
   $('#rolls').innerHTML = [0, 1, 2].map(k => `<i class="${k < rollsLeft ? 'on' : ''}"></i>`).join('');
   const c = [0, 0, 0, 0, 0, 0, 0];
@@ -369,7 +418,7 @@ $('#tray').addEventListener('click', e => { if (!e.target.closest('#throwBtn') &
 
 async function throwDice(power) {
   if (!Y.canThrow(rollsLeft, held, busy)) return resetCup();
-  busy = true; skip = false; rollsLeft--;
+  busy = true; skip = botFast; rollsLeft--;
   renderTurnbar();
   const calm = settings.get('calm');
   const idx = [0, 1, 2, 3, 4].filter(k => !held[k]);
@@ -509,8 +558,72 @@ function fireworks(ms) {
 }
 
 function afterFill() {
-  if (Y.matchOver(game)) { state = 'over'; renderScores(); return; }
+  if (Y.matchOver(game)) return endMatch();
+  save();
   startTurn();
+}
+
+// ---------- Matchen är slut: prispallen ----------
+function endMatch() {
+  state = 'over';
+  closeTray();
+  const rank = Y.ranking(game);
+  rank.forEach((r, i) => r === 1 && game.wins[i]++);
+  const champ = game.wins.some(w => w >= game.target);
+  champ ? clearSave() : save();
+  renderScores();
+  const order = players.map((p, i) => i).sort((a, b) => rank[a] - rank[b]);
+  const shown = [order[1], order[0], order[2], order[3]].filter(i => i !== undefined); // tvåan, ettan, trean, fyran
+  $('#podiumList').innerHTML = shown.map(i =>
+    `<div class="step rank${rank[i]}"><span class="score">${miniDie(6)}<b>${Y.total(game.sheets[i])}</b></span>` +
+    `<span class="pawn-big">${figure(players[i], false)}</span>` +
+    `<div class="block"><span class="medal">${rank[i]}</span><span class="plate">${esc(players[i].name)}</span></div></div>`).join('');
+  const winners = order.filter(i => rank[i] === 1).map(i => players[i].name);
+  const who = winners.length > 1 ? 'Det blev lika!' : `${winners[0]} vann`;
+  $('#winTitle').textContent = winners.length > 1 ? who : champ ? `${who}${game.target > 1 ? ' hela spelet' : ''}!` : `${who} matchen!`;
+  $('#winText').textContent = game.target > 1 ? `Ställning: ${game.wins.join('–')}. Först till ${game.target}.` : '';
+  $('#nextBtn').hidden = champ;
+  $('#againBtn').hidden = !champ;
+  const FLAG = ['#e53935', '#fbc02d', '#43a047', '#1e88e5', '#8e24aa', '#fb8c00'];
+  $('#flags').innerHTML = Array.from({ length: 16 }, (_, i) => {
+    const x = 30 + i * 62, y = 6 + 54 * 4 * (x / 1000) * (1 - x / 1000) * 0.5;
+    return `<path d="M${x - 18} ${y} L${x + 18} ${y} L${x} ${y + 34}Z" fill="${FLAG[i % FLAG.length]}"/>`;
+  }).join('');
+  $('#confetti').innerHTML = Array.from({ length: 28 }, (_, i) =>
+    `<i style="left:${Math.random() * 100}%;background:${FLAG[i % FLAG.length]};animation-delay:${-Math.random() * 6}s;animation-duration:${4 + Math.random() * 4}s"></i>`).join('');
+  $('#podium').hidden = false;
+  if (!settings.get('calm')) fireworks(4000);
+  sfx.win();
+  // Knapparna är gråa en sekund, så att ett oväntat tryck inte startar en ny match av misstag.
+  const btns = document.querySelectorAll('#podium .btn');
+  btns.forEach(b => (b.disabled = true));
+  setTimeout(() => btns.forEach(b => (b.disabled = false)), 1000);
+}
+// Nästa match: blocken töms, nästa spelare börjar.
+$('#nextBtn').onclick = () => {
+  $('#podium').hidden = true; sfx.click();
+  Y.newMatch(game);
+  game.starter = ((game.starter || 0) + 1) % players.length;
+  game.current = game.starter;
+  save();
+  state = 'turn'; startTurn();
+};
+$('#againBtn').onclick = () => { $('#podium').hidden = true; sfx.click(); state = 'setup'; renderSetup(); show('setup'); music.play(MENU_SONG); };
+$('#menuBtn').onclick = () => (location.href = '../../index.html');
+
+// ---------- Spara pågående match (efter varje ifylld rad) ----------
+const SAVE = 'yatzy-save';
+function save() { try { localStorage.setItem(SAVE, JSON.stringify({ game: Y.toSave(game), level })); } catch {} }
+function clearSave() { try { localStorage.removeItem(SAVE); } catch {} }
+async function offerResume() {
+  let saved = null;
+  try { saved = JSON.parse(localStorage.getItem(SAVE) || 'null'); } catch {}
+  if (!saved?.game?.sheets) return;
+  if (!(await ask('Fortsätta förra matchen?', 'Matchen sparades där ni slutade.', null, null, 'green'))) return clearSave();
+  game = Y.fromSave(saved.game);
+  players = game.players; target = game.target; level = saved.level || level;
+  bot = players.some(p => p.bot);
+  beginPlay();
 }
 
 // ---------- Knappar högst upp ----------
@@ -586,3 +699,4 @@ try { if (!localStorage.getItem('yatzy-seen')) { setRules(true); localStorage.se
 music.autostart(MENU_SONG);
 fillIcons();
 renderSetup();
+offerResume();
