@@ -436,3 +436,16 @@ import * as D from '../www/games/yatzy/dice.js';
   assert.equal(Y.canThrow(3, [false,false,false,false,false], true), false);
   console.log('Yatzy canThrow OK');
 }
+{
+  // Nästa match: blocken töms, vunna matcher finns kvar, nästa spelare börjar. Robo kraschar inte på ett fullt block.
+  const g = Y.createGame([{ name: 'A' }, { name: 'B' }], 2);
+  for (let i = 0; i < 30; i++) Y.fill(g, Y.left(g.sheets[g.current])[0], [6,6,6,6,6]);
+  g.wins = [1, 0];
+  Y.nextMatch(g);
+  assert.deepEqual(g.sheets, [{}, {}]); assert.deepEqual(g.wins, [1, 0]); assert.equal(g.starter, 1); assert.equal(g.current, 1);
+  Y.nextMatch(g); assert.equal(g.current, 0);
+  const full = Object.fromEntries(Y.ROWS.map(r => [r.id, 1]));
+  assert.equal(Y.botPick(full, [1,2,3,4,5], 'normal'), null);
+  assert.deepEqual(Y.botHold(full, [1,2,3,4,5], 'hard'), [true,true,true,true,true]);
+  console.log('Yatzy nästa match OK');
+}

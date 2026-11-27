@@ -180,3 +180,26 @@ body.calm .cup:not(.held):not(.pour) { animation: none; }
 }
 .tray-hint:empty { display: none; }
 .cup.pour { z-index: 1; }
+
+/* ---------- Spara tärningar i asken: rutan "Sparade" till vänster ---------- */
+.dice-box { position: absolute; inset: 0; }
+.keep { position: absolute; left: 0; top: 0; bottom: 0; width: calc(var(--keep, 108px)); border-radius: 16px 0 0 16px; pointer-events: none;
+  background: linear-gradient(90deg, rgba(0,0,0,.28), rgba(0,0,0,.16)); border-right: 2px dashed rgba(255, 244, 201, .35); }
+.keep b { position: absolute; left: 0; right: 0; top: 8px; text-align: center; font-size: 14px; letter-spacing: .06em; text-transform: uppercase; color: rgba(255, 244, 201, .75); }
+.tdie { cursor: pointer; }
+.tdie.kept .face { box-shadow: inset 0 0 0 3px var(--c, #ffd54f), 0 0 16px var(--c, #ffd54f); }
+.tdie.kept .tshadow { opacity: .5; }
+.cup.off { opacity: .45; filter: grayscale(.6) drop-shadow(0 10px 10px rgba(0,0,0,.45)); cursor: default; animation: none !important; }
+.throw-btn { left: 50%; transform: translateX(-50%); }
+.to-sheet { position: absolute; right: 30px; top: 22px; min-height: 0; padding: 8px 18px; font-size: 18px; }
+.tray-hint { max-width: calc(100% - 300px); white-space: normal; text-align: center; font-size: 19px; }
+@media (max-width: 600px) {
+  .keep b { font-size: 11px; }
+  .to-sheet { right: 14px; top: 14px; padding: 6px 12px; font-size: 15px; }
+  .tray-hint { top: auto; bottom: 120px; max-width: 70%; left: 58%; font-size: 15px; }
+}
+@media (max-width: 600px) {
+  .tray { height: 100%; }
+  .tray-hint { top: 14px; bottom: auto; left: calc(var(--keep, 84px) + 14px); transform: none; max-width: 40%; text-align: left; }
+  .tray.thrown .tray-hint { display: none; }
+}

@@ -1,6 +1,6 @@
 // Yatzys egna ljudeffekter: lugna, varma och låga. Inga skarpa pip, mjuk insvängning och ett svagt rumseko.
 // Samma namn som sfx i shared/audio.js, så att game.js kan använda dem på samma sätt. Följer inställningen "Ljudeffekter".
-import { getCtx, settings } from '../../shared/audio.js';
+import { getCtx, settings, sfx as shared } from '../../shared/audio.js';
 
 let ctx, bus, noiseBuf;
 // Gemensam väg för alla ljud: mjukt filter (tar bort det vassa) och ett kort, varmt eko.
@@ -39,7 +39,7 @@ function tone(freq, dur, { type = 'sine', vol = 0.1, delay = 0, attack = 0.02, t
 // Klocka: grundton plus en svag oktav, mjukt.
 const bell = (f, dur = 1.2, vol = 0.07, delay = 0) => { tone(f, dur, { vol, delay }); tone(f * 2, dur * 0.5, { vol: vol * 0.18, delay }); };
 // Filtrerat brus: duns, filt, skrammel.
-function noise(delay, dur, { freq, q = 1, type = 'bandpass', vol = 0.1, attack = 0.003, sweep } = {}) {
+function noise(delay, dur, { freq, q = 1, type = 'bandpass', vol = 0.1, attack = 0.003, sweep, raw } = {}) {
   if (!on()) return;
   try {
     setup();
@@ -50,12 +50,17 @@ function noise(delay, dur, { freq, q = 1, type = 'bandpass', vol = 0.1, attack =
     g.gain.setValueAtTime(0.0001, t);
     g.gain.exponentialRampToValueAtTime(vol, t + attack);
     g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-    src.connect(f).connect(g).connect(bus);
+    src.connect(f).connect(g).connect(raw ? ctx.destination : bus); // raw: förbi det mjuka filtret (tärningarnas klick ska vara krispiga)
     src.start(t, Math.random() * 0.4, dur + 0.05);
   } catch {}
 }
-// Tärning mot tärning: ett dovt träklick (inte vasst).
-const clack = (delay, v = 0.4) => noise(delay, 0.05, { freq: 1100 + Math.random() * 700, q: 4, vol: 0.05 + v * 0.07 });
+// Tärningar i en pappbägare (som på spelställen): plasttärningar som klickar mot varandra,
+// och ett ihåligt 'tock' när de slår i bägarens vägg och botten.
+const tick = (delay = 0, v = 0.5) => noise(delay, 0.012 + Math.random() * 0.012, { freq: 2800 + Math.random() * 2400, q: 7 + Math.random() * 5, vol: 0.05 + v * 0.1, raw: true });
+const cupWall = (delay = 0, v = 0.5) => {
+  noise(delay, 0.07, { freq: 650 + Math.random() * 250, q: 3, vol: 0.06 + v * 0.14, raw: true }); // pappens ihåliga klang
+  noise(delay, 0.05, { freq: 200, q: 0.7, type: 'lowpass', vol: 0.05 + v * 0.1, raw: true }); // dunsen
+};
 // Tärningar mot filt eller läder: mjukt duns.
 const thud = (delay = 0, vol = 0.12) => noise(delay, 0.12, { freq: 220, q: 0.7, type: 'lowpass', vol });
 
@@ -66,10 +71,14 @@ export const sfx = {
   click: () => { thud(0, 0.06); tone(N.A3, 0.18, { vol: 0.05 }); },
   pop: () => tone(N.D4, 0.35, { vol: 0.06, attack: 0.015 }),
   hold: (down = true) => { thud(0, 0.07); down ? tone(N.E4, 0.4, { vol: 0.06 }) : tone(N.B3, 0.3, { vol: 0.05 }); },
-  rattle: (v = 0.5) => { thud(0, 0.05 + v * 0.06); const n = 2 + Math.round(v * 3); for (let i = 0; i < n; i++) clack(0.015 + Math.random() * 0.08, 0.2 + v * 0.3); },
-  pour: () => { noise(0, 0.45, { freq: 900, q: 0.8, vol: 0.05, attack: 0.05, sweep: 300 }); for (let i = 0; i < 5; i++) clack(0.08 + i * 0.05 + Math.random() * 0.02, 0.35 - i * 0.04); },
-  knock: (v = 0.5) => { thud(0, 0.04 + v * 0.12); if (v > 0.35) clack(0.005, v * 0.5); },
-  land: () => { thud(0, 0.1); bell(N.D4, 0.8, 0.04, 0.03); },
+  // Bägaren byter riktning: tärningarna slår i väggen, och några klickar mot varandra direkt efter.
+  rattle: (v = 0.5) => { cupWall(0, v); const n = 3 + Math.round(v * 4); for (let i = 0; i < n; i++) tick(0.008 + Math.random() * 0.07, v); },
+  // Medan bägaren rör sig: tärningarna skramlar lätt mot varandra.
+  tick: (v = 0.4) => { tick(0, v); if (Math.random() < 0.5) tick(0.02 + Math.random() * 0.03, v * 0.7); },
+  // Tärningarna hälls ut: de rullar ur bägaren, sedan samma kast som i Blåbärsjakten.
+  pour: () => { cupWall(0, 0.5); for (let i = 0; i < 6; i++) tick(0.03 + i * 0.035 + Math.random() * 0.02, 0.5 - i * 0.05); shared.whoosh(0.5); },
+  knock: v => shared.knock(v), // tärningen slår i asken: samma ljud som i Blåbärsjakten
+  land: () => shared.land(),
   good: () => { bell(N.D4, 1.2, 0.06); bell(N.Fs4, 1.2, 0.05, 0.09); bell(N.A4, 1.4, 0.05, 0.18); },
   bad: () => { tone(N.A3, 0.6, { type: 'triangle', vol: 0.05, attack: 0.04, to: 196 }); },
   six: () => [N.D4, N.Fs4, N.A4, N.D5].forEach((f, i) => bell(f, 1.6, 0.06, i * 0.14)),

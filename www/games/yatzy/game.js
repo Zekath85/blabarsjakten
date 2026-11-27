@@ -206,7 +206,7 @@ async function onRowTap(id) {
   const value = Y.score(id, dice);
   if (value === 0) {
     busy = true;
-    const yes = await ask(`Stryka ${Y.ROWS.find(r => r.id === id).name}?`, 'Raden får noll poäng.', 'voice/strike.mp3', LINES.strike);
+    const yes = await ask(`Stryka ${Y.ROWS.find(r => r.id === id).name}?`, 'Raden får noll poäng.', 'voice/strike.mp3', LINES.strike, 'red', 'dice');
     busy = false;
     if (!yes) return;
   }
@@ -216,6 +216,8 @@ async function onRowTap(id) {
 // Fyller i raden: siffran räknas upp, sedan nästa spelare.
 async function commitRow(id) {
   busy = true;
+  clearTimeout(peekTimer);
+  closeTray();
   const who = game.current, bonusBefore = Y.bonus(game.sheets[who]);
   Y.fill(game, id, dice);
   const value = game.sheets[who][id];
@@ -277,6 +279,7 @@ function beginPlay() {
 let botFast = false; // ett tryck under Robos tur snabbspolar resten av turen
 async function startTurn() {
   dice = [1, 1, 1, 1, 1]; held = held.map(() => false); rollsLeft = 3; botFast = false;
+  clearTimeout(peekTimer); clearTray();
   viewing = game.current;
   renderScores(); renderSheet(game.current); renderTurnbar();
   const sh = $('#sheet');
@@ -288,6 +291,7 @@ async function startTurn() {
   if (state === 'turn' && !isBot() && !thrown()) openTray();
 }
 // Spelarens ansikte stort i mitten en kort stund (samma som i Blåbärsjakten).
+let bannerTimer;
 function turnBanner() {
   if (players.length < 2) return;
   const b = $('#turnBanner'), p = me();
@@ -296,7 +300,8 @@ function turnBanner() {
   b.hidden = false;
   b.style.animation = 'none'; void b.offsetWidth; b.style.animation = '';
   sfx.turn(game.current);
-  setTimeout(() => (b.hidden = true), 1300);
+  clearTimeout(bannerTimer);
+  bannerTimer = setTimeout(() => (b.hidden = true), 1300);
 }
 
 // Robo: kastar, sparar tärningar efter sin nivå och väljer en rad. Lagom takt, och ett tryck snabbspolar.
@@ -314,7 +319,7 @@ async function botTurn() {
     const h = Y.botHold(game.sheets[who], dice, level);
     if (h.every(Boolean)) break; // nöjd: kastar inte mer
     await botWait(500);
-    for (let k = 0; k < 5; k++) if (h[k] !== held[k]) { held[k] = h[k]; sfx.hold(h[k]); renderTurnbar(); await botWait(260); }
+    for (let k = 0; k < 5; k++) if (h[k] !== held[k]) { held[k] = h[k]; sfx.hold(h[k]); placeDie(k, true); renderTurnbar(); await botWait(260); }
     await botWait(500);
   }
   if (!still()) return;
@@ -322,7 +327,8 @@ async function botTurn() {
   await botWait(800);
   if (still()) await commitRow(id);
 }
-document.addEventListener('pointerdown', () => { if (isBot()) { botFast = true; skip = true; } });
+// Tryck på poängpillren, knapparna högst upp eller en fråga snabbspolar inte (man kanske bara vill kika).
+document.addEventListener('pointerdown', e => { if (isBot() && !e.target.closest('#scores, .dialog, .icon-btn, .overlay')) { botFast = true; skip = true; } });
 function renderTurnbar() {
   $('#rolls').innerHTML = [0, 1, 2].map(k => `<i class="${k < rollsLeft ? 'on' : ''}"></i>`).join('');
   const c = [0, 0, 0, 0, 0, 0, 0];
@@ -332,7 +338,7 @@ function renderTurnbar() {
     `<button class="hd ${held[k] ? 'held' : trayOpen ? 'away' : ''} ${c[d] >= 2 ? 'match' : ''}" data-k="${k}" aria-label="Tärning ${d}${held[k] ? ', sparad' : ''}">${miniDie(d)}</button>`).join('') : '';
   const btn = $('#cupBtn');
   btn.disabled = isBot() || busy || trayOpen || !Y.canThrow(rollsLeft, held, busy);
-  btn.innerHTML = `${ICONS.dice}<span>${!thrown() ? 'Skaka' : rollsLeft > 0 ? 'Kasta igen' : 'Välj en rad'}</span>`;
+  btn.innerHTML = `${ICONS.dice}<span>${!thrown() ? 'Skaka' : rollsLeft === 0 ? 'Välj en rad' : !held.includes(false) ? 'Släpp en tärning' : 'Kasta igen'}</span>`;
 }
 $('#hold').onclick = e => {
   const b = e.target.closest('.hd');
@@ -358,23 +364,59 @@ $('#cup').innerHTML = `<svg viewBox="0 0 120 140" aria-hidden="true">
   <ellipse cx="60" cy="22" rx="46" ry="12" fill="#2a1306" stroke="url(#cupB)" stroke-width="5"/>
   <path d="M30 36 Q34 90 38 120" stroke="rgba(255,255,255,.18)" stroke-width="6" fill="none" stroke-linecap="round"/></svg>`;
 let trayOpen = false;
+// Tärningarna i asken (en per plats 0–4) ligger kvar mellan kasten. pos: var de vilar på filten när de inte är sparade.
+let tdice = [], pos = [];
+const keepW = () => Math.round(DSIZE() * 1.5); // bredden på rutan "Sparade" till vänster i asken
+function slotOf(k) { const S = DSIZE(), H = $('#felt').clientHeight; return { x: keepW() / 2, y: H / 2 + 12 + (k - 2) * (S + 8) }; }
+// Lägger tärning k där den ska vara: i "Sparade" om den är sparad, annars där den landade. animate: glid dit.
+function placeDie(k, animate) {
+  const el = tdice[k];
+  if (!el) return;
+  const S = DSIZE(), p = held[k] ? slotOf(k) : pos[k];
+  el.style.transition = animate && !settings.get('calm') ? 'transform .35s cubic-bezier(.3,.7,.3,1)' : 'none';
+  el.style.transform = `translate(${p.x - S / 2}px, ${p.y - S / 2}px)`;
+  el.firstElementChild.style.transform = '';
+  el.classList.toggle('kept', held[k]);
+}
+function trayHint() {
+  $('#trayHint').textContent = rollsLeft === 3 ? 'Skaka bägaren!'
+    : rollsLeft === 0 ? ''
+    : !held.includes(false) ? 'Släpp en tärning för att kasta'
+    : rollsLeft === 1 ? 'Sista kastet! Tryck på tärningar för att spara dem.' : 'Tryck på tärningar för att spara dem.';
+  cup.classList.toggle('off', !Y.canThrow(rollsLeft, held, busy));
+  $('#throwBtn').disabled = isBot() || !Y.canThrow(rollsLeft, held, busy);
+  $('#toSheetBtn').hidden = !thrown() || isBot();
+  $('#tray').classList.toggle('thrown', thrown());
+}
 function openTray() {
   if (trayOpen) return;
   trayOpen = true;
   const bar = $('#play .bar').getBoundingClientRect();
   $('#trayLayer').style.bottom = Math.max(0, innerHeight - bar.top) + 'px';
   $('#trayLayer').hidden = false;
-  $('#felt').innerHTML = '';
+  $('#felt').style.setProperty('--keep', keepW() + 'px');
   resetCup();
-  $('#trayHint').textContent = rollsLeft === 3 ? 'Skaka bägaren!' : rollsLeft === 1 ? 'Sista kastet!' : 'Skaka igen!';
+  tdice.forEach((_, k) => placeDie(k, false)); // tärningar man sparat i raden nedanför ligger i "Sparade"
   if (!isBot() && rollsLeft < 3) say(rollsLeft === 1 ? 'last' : 'two');
-  $('#throwBtn').disabled = isBot();
+  trayHint();
   renderTurnbar();
 }
 function closeTray() { trayOpen = false; $('#trayLayer').hidden = true; $('#trayLayer').classList.remove('slowmo'); }
-// Tryck bredvid asken: tillbaka till blocket (bara om man redan har kastat en gång).
-$('#trayLayer').addEventListener('click', e => {
-  if (e.target.id === 'trayLayer' && thrown() && !busy && !isBot()) { closeTray(); renderTurnbar(); }
+function clearTray() { $('#dice').innerHTML = ''; tdice = []; pos = []; }
+const toSheet = () => { if (thrown() && !busy && !isBot()) { closeTray(); renderTurnbar(); renderSheet(game.current); } };
+// Tryck bredvid asken eller på "Till blocket": tillbaka till blocket (bara om man redan har kastat en gång).
+$('#trayLayer').addEventListener('click', e => { if (e.target.id === 'trayLayer') toSheet(); });
+$('#toSheetBtn').onclick = e => { e.stopPropagation(); toSheet(); };
+// Tryck på en tärning i asken: spara den (den glider till "Sparade") eller släpp den igen.
+$('#dice').addEventListener('click', e => {
+  const el = e.target.closest('.tdie');
+  if (!el || busy || isBot() || rollsLeft === 0) return;
+  e.stopPropagation();
+  const k = +el.dataset.k;
+  held[k] = !held[k];
+  sfx.hold(held[k]);
+  placeDie(k, true);
+  trayHint(); renderTurnbar();
 });
 const cup = $('#cup');
 function resetCup() { cup.className = 'cup'; cup.style.transform = ''; }
@@ -397,6 +439,9 @@ cup.addEventListener('pointermove', e => {
     sfx.rattle(Math.min(1, shake.n / 8));
     cup.classList.remove('rat'); void cup.offsetWidth; cup.classList.add('rat');
   }
+  // Medan bägaren rör sig skramlar tärningarna lätt (ett klick ungefär var 30:e pixel).
+  shake.move = (shake.move || 0) + Math.abs(m);
+  if (shake.move > 30) { shake.move = 0; sfx.tick(Math.min(1, 0.3 + shake.n / 10)); }
   shake.lx = e.clientX; shake.ly = e.clientY;
   const ox = clamp(e.clientX - shake.x0, -80, 80), oy = clamp(e.clientY - shake.y0, -60, 40);
   cup.style.transform = `translate(${ox}px, ${oy}px) rotate(${ox / 4}deg)`;
@@ -417,6 +462,7 @@ async function autoThrow() {
   $('#trayHint').textContent = 'Skaka, skaka …';
   for (let k = 0; k < 5; k++) {
     sfx.rattle(0.3 + k * 0.12);
+    setTimeout(() => sfx.tick(0.4), 60);
     cup.style.transform = `translate(${k % 2 ? 26 : -26}px, ${k % 2 ? -8 : 4}px) rotate(${k % 2 ? 9 : -9}deg)`;
     await wait(120);
   }
@@ -441,15 +487,19 @@ async function throwDice(power) {
   $('#trayHint').textContent = '';
   sfx.pour();
   await wait(calm ? 120 : 240);
-  const fr = felt.getBoundingClientRect(), cr = cup.getBoundingClientRect();
-  const mx = clamp(cr.left - fr.left + 10, S, W - S), my = clamp(cr.top - fr.top + cr.height * 0.4, S, H - S);
+  const fr = felt.getBoundingClientRect(), cr = cup.getBoundingClientRect(), L = keepW() + 6;
+  const mx = clamp(cr.left - fr.left + 10, L + S, W - S), my = clamp(cr.top - fr.top + cr.height * 0.4, 46 + S, H - S - $('#throwBtn').offsetHeight - 14);
   const r = () => Math.random();
   const starts = idx.map((_, j) => ({ x: mx - j * 6, y: my + (j - 2) * 10, vx: -(420 + 900 * power) * (0.7 + r() * 0.6), vy: (r() - 0.65) * (300 + 800 * power) }));
-  const sim = simulateTray(starts, { l: 0, t: 0, r: W, b: H }, S, Math.random);
+  const sim = simulateTray(starts, { l: L, t: 46, r: W, b: H - $('#throwBtn').offsetHeight - 14 }, S, Math.random); // till höger om "Sparade", under texten och ovanför knappen
   const rot = sim.frames.map((f, j) => startRotation(faces[j], f.at(-1), Math.random));
   const final = dice.map((d, k) => (held[k] ? d : faces[idx.indexOf(k)]));
-  felt.innerHTML = idx.map(() => `<div class="tdie" style="--s:${S / 96};width:${S}px;height:${S}px"><div class="tshadow"></div><div class="tlift"><div class="cube">${CUBE_FACES}</div></div></div>`).join('');
-  const els = [...felt.children];
+  if (!tdice.length) { // första kastet i turen: fem tärningar läggs i asken
+    $('#dice').innerHTML = [0, 1, 2, 3, 4].map(k => `<div class="tdie" data-k="${k}" style="--s:${S / 96};width:${S}px;height:${S}px"><div class="tshadow"></div><div class="tlift"><div class="cube">${CUBE_FACES}</div></div></div>`).join('');
+    tdice = [...$('#dice').children];
+  }
+  const els = idx.map(k => tdice[k]);
+  els.forEach(el => { el.style.transition = 'none'; el.classList.remove('match', 'kept'); el.querySelector('.tshadow').style.opacity = ''; });
   // När stannar varje tärning? (sista bildrutan den rör sig)
   const stopAt = sim.frames.map(f => { for (let i = f.length - 1; i > 0; i--) if (f[i].z > 0 || Math.hypot(f[i].x - f[i - 1].x, f[i].y - f[i - 1].y) > 0.3) return i; return 0; });
   // Spänning: fyra lika och den femte rullar fortfarande. Då går den sista i slow motion med trumvirvel.
@@ -486,16 +536,21 @@ async function throwDice(power) {
   });
   $('#trayLayer').classList.remove('slowmo');
   dice = final;
+  idx.forEach((k, j) => { const f = sim.frames[j].at(-1); pos[k] = { x: f.x, y: f.y }; });
   sfx.land();
   // Tärningar med samma siffra lyser upp.
   const c = [0, 0, 0, 0, 0, 0, 0];
   dice.forEach(d => c[d]++);
-  els.forEach((el, j) => c[faces[j]] >= 2 && el.classList.add('match'));
+  tdice.forEach((el, k) => el.classList.toggle('match', c[dice[k]] >= 2));
   await celebrate(slow >= 0);
-  await wait(calm ? 250 : 550);
-  await glideToHold(els, idx);
-  closeTray();
+  if (rollsLeft === 0) {
+    // Sista kastet: alla tärningar glider ner till raden under blocket, och man väljer en rad.
+    await wait(calm ? 250 : 550);
+    await glideToHold(tdice, [0, 1, 2, 3, 4]);
+    closeTray();
+  }
   busy = false;
+  if (trayOpen) trayHint(); // asken är kvar: nu kan man spara tärningar och kasta igen
   renderTurnbar(); renderSheet(game.current);
   if (rollsLeft === 0 && !isBot()) say('pick');
 }
@@ -616,9 +671,7 @@ function endMatch() {
 // Nästa match: blocken töms, nästa spelare börjar.
 $('#nextBtn').onclick = () => {
   $('#podium').hidden = true; sfx.click();
-  Y.newMatch(game);
-  game.starter = ((game.starter || 0) + 1) % players.length;
-  game.current = game.starter;
+  Y.nextMatch(game);
   save();
   state = 'turn'; startTurn();
 };
@@ -635,6 +688,7 @@ async function offerResume() {
   if (!saved?.game?.sheets) return;
   if (!(await ask('Fortsätta förra matchen?', 'Matchen sparades där ni slutade.', null, null, 'green'))) return clearSave();
   game = Y.fromSave(saved.game);
+  if (Y.matchOver(game)) Y.nextMatch(game); // sparad efter en färdig match: fortsätt med nästa match i serien
   players = game.players; target = game.target; level = saved.level || level;
   bot = players.some(p => p.bot);
   beginPlay();

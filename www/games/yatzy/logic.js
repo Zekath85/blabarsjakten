@@ -68,6 +68,8 @@ export function ranking(g) {
   return t.map(x => 1 + t.filter(y => y > x).length);
 }
 export function newMatch(g) { g.sheets = g.players.map(() => ({})); g.current = 0; g.round = 1; }
+// Nästa match i ett spel med flera matcher: tomma block, och nästa spelare i tur får börja.
+export function nextMatch(g) { newMatch(g); g.starter = ((g.starter || 0) + 1) % g.players.length; g.current = g.starter; }
 
 export const toSave = g => JSON.parse(JSON.stringify(g));
 export const fromSave = o => JSON.parse(JSON.stringify(o));
@@ -99,6 +101,7 @@ function straightHold(dice) {
 const bestFree = (sheet, dice) => Math.max(...left(sheet).map(id => value(id, dice)));
 
 export function botHold(sheet, dice, level, rnd = Math.random) {
+  if (!left(sheet).length) return dice.map(() => true); // blocket är fullt: inget att kasta för
   if (level === 'hard') {
     // Prova alla 32 sätt att spara, slå om resten många gånger och välj det som brukar ge bäst rad.
     let best = null, bestMean = -1;
@@ -117,6 +120,7 @@ export function botHold(sheet, dice, level, rnd = Math.random) {
 
 export function botPick(sheet, dice, level, rnd = Math.random) {
   const free = left(sheet);
+  if (!free.length) return null;
   if (level === 'easy' && rnd() < 0.5) {
     const some = free.filter(id => score(id, dice) > 0);
     if (some.length) return some[Math.floor(rnd() * some.length)];

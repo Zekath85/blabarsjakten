@@ -10,7 +10,8 @@ export function confirmQuit(gameName) {
 }
 
 // Allmän ja/nej-fråga i samma stil. voice/say: inspelad fråga (och texten om filen saknas). yesColor: 'red' eller 'green'.
-export function ask(title, text, voice, say, yesColor = 'red') {
+// kind: vilken röstinställning som styr uppläsningen (som i playClip).
+export function ask(title, text, voice, say, yesColor = 'red', kind = 'cards') {
   const box = document.createElement('div');
   box.className = 'dialog';
   box.innerHTML = `<div class="dialog-card" role="alertdialog" aria-modal="true">
@@ -25,7 +26,7 @@ export function ask(title, text, voice, say, yesColor = 'red') {
   box.querySelector('h2').textContent = title;
   box.querySelector('p').textContent = text;
   document.body.append(box);
-  if (voice) playClip(voice, say, undefined, 'cards');
+  if (voice) playClip(voice, say, undefined, kind);
   return new Promise(done => {
     box.onclick = e => {
       const v = e.target.closest('[data-v]')?.dataset.v;
