@@ -393,3 +393,20 @@ import * as Y from '../www/games/yatzy/logic.js';
   assert.ok(Y.matchOver(h)); assert.deepEqual(Y.ranking(h), [1, 1]);
   console.log('Yatzy OK');
 }
+{
+  const rnd = mulberry32(7);
+  assert.notEqual(Y.goodRows({}, [6,6,6,6,6]).length, 1);
+  assert.ok(Y.goodRows({}, [6,6,6,6,6]).includes('yatzy'));
+  assert.ok(Y.goodRows({}, [6,6,6,6,6]).length <= 3);
+  assert.deepEqual(Y.goodRows(Object.fromEntries(Y.ROWS.map(r => [r.id, 0]).filter(([id]) => id !== 'ones')), [2,3,4,5,6]), []);
+  assert.deepEqual(Y.botHold({}, [3,3,3,1,6], 'easy', rnd), [true,true,true,false,false]);
+  for (const lvl of Y.LEVELS) assert.ok(Y.left({}).includes(Y.botPick({}, [1,2,3,4,5], lvl, rnd)));
+  assert.equal(Y.botPick({}, [2,3,4,5,6], 'normal', rnd), 'large');
+  // bara ettor och yatzy lediga, båda ger 0: stryk raden med lägst TYPICAL (ettor = 3)
+  assert.equal(Y.botPick(Object.fromEntries(Y.ROWS.filter(r => !['yatzy','ones'].includes(r.id)).map(r => [r.id, 5])), [2,3,4,5,6], 'normal', rnd), 'ones');
+  // Svår ska få fler poäng än lätt över många matcher.
+  const play = (lvl, seed) => { const r = mulberry32(seed); let s = {}; for (let t = 0; t < 15; t++) { let d = [0,0,0,0,0].map(() => 1 + Math.floor(r() * 6)); for (let k = 0; k < 2; k++) { const h = Y.botHold(s, d, lvl, r); d = d.map((x, i) => (h[i] ? x : 1 + Math.floor(r() * 6))); } s[Y.botPick(s, d, lvl, r)] = 0; const id = Object.keys(s).at(-1); s[id] = Y.score(id, d); } return Y.total(s); };
+  let easy = 0, hard = 0; for (let k = 0; k < 20; k++) { easy += play("easy", k); hard += play("hard", k); }
+  assert.ok(hard > easy, `svår slår lätt (${hard} mot ${easy})`);
+  console.log('Yatzy Robo OK');
+}

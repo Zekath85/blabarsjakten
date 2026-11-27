@@ -71,3 +71,58 @@ export function newMatch(g) { g.sheets = g.players.map(() => ({})); g.current = 
 
 export const toSave = g => JSON.parse(JSON.stringify(g));
 export const fromSave = o => JSON.parse(JSON.stringify(o));
+
+// ---------- Hjälp och datorn ----------
+export const LEVELS = ['easy', 'normal', 'hard'];
+export const HELP = ['none', 'some', 'lots'];
+// Vad en rad brukar ge i ett vanligt spel. Används för att se om ett kast är bra för raden.
+export const TYPICAL = { ones: 3, twos: 6, threes: 9, fours: 12, fives: 15, sixes: 18, pair: 8, twoPairs: 14, three: 12, four: 13, small: 15, large: 20, house: 18, chance: 22, yatzy: 20 }; // yatzy: snittet i ett spel är lågt eftersom den är ovanlig
+const value = (id, dice) => score(id, dice) / TYPICAL[id];
+
+// Stjärnor vid bra rader: 0, 2 eller 3 rader, aldrig en enda (spelet ska inte peka ut "bästa valet").
+export function goodRows(sheet, dice) {
+  const free = left(sheet).filter(id => score(id, dice) > 0).sort((a, b) => value(b, dice) - value(a, dice));
+  const good = free.filter(id => value(id, dice) >= 1).slice(0, 3);
+  if (good.length === 1) return free.length > 1 ? free.slice(0, 2) : [];
+  return good;
+}
+
+const mostCommon = dice => { const c = counts(dice); return [6, 5, 4, 3, 2, 1].reduce((best, f) => (c[f] > c[best] ? f : best), 6); };
+const keepFace = (dice, f) => dice.map(d => d === f);
+// Fyra tärningar i följd (för stegarna): behåll en av varje i följden.
+function straightHold(dice) {
+  for (const run of [[2, 3, 4, 5], [1, 2, 3, 4], [3, 4, 5, 6]]) {
+    if (run.every(f => dice.includes(f))) { const used = new Set(); return dice.map(d => run.includes(d) && !used.has(d) && used.add(d)); }
+  }
+  return null;
+}
+const bestFree = (sheet, dice) => Math.max(...left(sheet).map(id => value(id, dice)));
+
+export function botHold(sheet, dice, level, rnd = Math.random) {
+  if (level === 'hard') {
+    // Prova alla 32 sätt att spara, slå om resten många gånger och välj det som brukar ge bäst rad.
+    let best = null, bestMean = -1;
+    for (let mask = 0; mask < 32; mask++) {
+      const hold = dice.map((_, i) => !!(mask & (1 << i)));
+      let s = 0;
+      for (let k = 0; k < 100; k++) s += bestFree(sheet, dice.map((d, i) => (hold[i] ? d : 1 + Math.floor(rnd() * 6))));
+      if (s > bestMean) { bestMean = s; best = hold; }
+    }
+    return best;
+  }
+  const free = left(sheet);
+  if (level === 'normal' && (free.includes('small') || free.includes('large'))) { const s = straightHold(dice); if (s) return s; }
+  return keepFace(dice, mostCommon(dice));
+}
+
+export function botPick(sheet, dice, level, rnd = Math.random) {
+  const free = left(sheet);
+  if (level === 'easy' && rnd() < 0.5) {
+    const some = free.filter(id => score(id, dice) > 0);
+    if (some.length) return some[Math.floor(rnd() * some.length)];
+  }
+  if (level === 'easy') return free.reduce((a, b) => (score(b, dice) > score(a, dice) ? b : a));
+  const top = free.reduce((a, b) => (value(b, dice) > value(a, dice) ? b : a));
+  if (score(top, dice) > 0) return top;
+  return free.reduce((a, b) => (TYPICAL[b] < TYPICAL[a] ? b : a)); // allt ger 0: stryk den rad som brukar ge minst
+}
