@@ -98,35 +98,6 @@ function tone(freq, dur, { type = 'sine', vol = 0.16, delay = 0, to } = {}) {
 // Marimba-liknande: grundton plus mjuk överton.
 const mallet = (f, dur = 0.35, vol = 0.14, delay = 0) => { tone(f, dur, { vol, delay }); tone(f * 4, dur * 0.3, { vol: vol * 0.25, delay }); };
 const notes = (list, step, vol) => list.forEach((f, i) => mallet(f, step * 3, vol, i * step));
-// Brus (skapas en gång) för ljud som inte är toner: klick, duns och skrammel.
-let noiseBuf;
-function noise(delay, dur, { freq, q = 1, type = 'bandpass', vol = 0.2 }) {
-  if (!prefs.sfx) return;
-  try {
-    getCtx();
-    if (!noiseBuf) {
-      noiseBuf = ctx.createBuffer(1, ctx.sampleRate * 0.5, ctx.sampleRate);
-      const d = noiseBuf.getChannelData(0);
-      for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
-    }
-    const t = ctx.currentTime + delay, src = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain();
-    src.buffer = noiseBuf;
-    f.type = type; f.frequency.value = freq; f.Q.value = q;
-    g.gain.setValueAtTime(0.0001, t);
-    g.gain.exponentialRampToValueAtTime(vol, t + 0.002);
-    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-    src.connect(f).connect(g).connect(ctx.destination);
-    src.start(t, Math.random() * 0.4, dur + 0.02);
-  } catch {}
-}
-// Ett klick: tärning mot tärning (hårt, ljust, med lite ton av benmaterial).
-const clack = (delay, v = 0.4) => {
-  const f = 2600 + Math.random() * 2400;
-  noise(delay, 0.03 + Math.random() * 0.02, { freq: f, q: 6 + Math.random() * 6, vol: 0.12 * v + 0.03 });
-  tone(f * 0.5, 0.025, { type: 'sine', vol: 0.02 * v, delay });
-};
-// Ett dovt duns: tärningarna mot läderbägarens botten.
-const thud = (vol = 0.1) => noise(0, 0.09, { freq: 260, q: 0.8, type: 'lowpass', vol });
 
 export const sfx = {
   click: () => mallet(880, 0.12, 0.08),
@@ -154,18 +125,4 @@ export const sfx = {
     bear: () => { tone(110, 0.5, { type: 'triangle', vol: 0.2, to: 82 }); mallet(196, 0.5, 0.1, 0.1); }, // mullrande
   })[fig]?.(),
   win: () => notes([523, 659, 784, 1047, 784, 1047, 1319], 0.12, 0.13),
-  // Yatzy: tärningar som skramlar i bägaren (kraftigare ju mer man skakar), hälls ut, sparas och en trumvirvel.
-  // Tärningar i en läderbägare: dova duns mot bägaren och skarpa klick när tärningarna slår mot varandra (brus genom filter).
-  rattle: (v = 0.5) => {
-    thud(0.05 + v * 0.07);
-    const n = 4 + Math.round(v * 5);
-    for (let i = 0; i < n; i++) clack(0.012 + Math.random() * 0.075, 0.18 + v * 0.35);
-  },
-  pour: () => {
-    thud(0.12);
-    for (let i = 0; i < 8; i++) clack(0.04 + i * 0.035 + Math.random() * 0.02, 0.5 - i * 0.04);
-  },
-  hold: (on = true) => (on ? notes([784, 1047], 0.05, 0.08) : notes([1047, 784], 0.05, 0.06)),
-  almost: () => { tone(440, 0.22, { type: 'triangle', vol: 0.09, to: 392 }); tone(392, 0.4, { type: 'triangle', vol: 0.09, to: 300, delay: 0.24 }); },
-  drumroll: (ms = 1000) => { for (let t = 0; t < ms; t += 45) tone(160 + Math.random() * 30, 0.05, { type: 'triangle', vol: 0.04 + (t / ms) * 0.1, delay: t / 1000 }); },
 };

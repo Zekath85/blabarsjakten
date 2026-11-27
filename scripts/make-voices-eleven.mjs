@@ -123,6 +123,20 @@ async function fiaVoice() {
   for (const [k, t] of Object.entries(lines)) await say(t, k, 'narrator', dir);
 }
 if (process.argv.includes('--fia')) { await fiaVoice(); process.exit(0); }
+// Yatzy: reglerna (rules.mp3) och berättarens korta repliker. Texterna läses från LINES i www/games/yatzy/game.js.
+//   node scripts/make-voices-eleven.mjs --yatzy --no-library        (--no-rules: bara replikerna, --force: gör om)
+async function yatzyVoice() {
+  const dir = 'www/games/yatzy/voice';
+  mkdirSync(dir, { recursive: true });
+  if (!process.argv.includes('--no-rules')) {
+    const html = readFileSync('www/games/yatzy/index.html', 'utf8');
+    await say(html.split('id="rulesText">')[1].split('</div>')[0].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim(), 'rules', 'narrator', dir);
+  }
+  const game = readFileSync('www/games/yatzy/game.js', 'utf8');
+  const lines = Object.fromEntries([...game.split('const LINES = {')[1].split('};')[0].matchAll(/(\w+): '([^']+)'/g)].map(m => [m[1], m[2]]));
+  for (const [k, t] of Object.entries(lines)) await say(t, k, 'narrator', dir);
+}
+if (process.argv.includes('--yatzy')) { await yatzyVoice(); process.exit(0); }
 // Memory: reglerna (rules.mp3), "Ett par!", "Din tur." och namnet på varje bild som inte redan finns i Fyra i rad (f-<bild>.mp3).
 // De sex figurerna (räv, uggla, ekorre, igelkott, hare, björn) kopieras från Fyra i rads röstmapp. Hela fraser, aldrig enstaka ord.
 //   node scripts/make-voices-eleven.mjs --memory            (--force gör om, --no-rules hoppar över reglerna)

@@ -70,6 +70,14 @@ node scripts/make-voices-eleven.mjs --no-library --model=eleven_v4
 
 Utan nyckel går det att använda Microsofts röster i stället: `npm run voices`.
 
+Yatzys röster (reglerna och berättarens repliker i `LINES` i `www/games/yatzy/game.js`):
+
+```bash
+node scripts/make-voices-eleven.mjs --yatzy --no-library
+```
+
+Yatzy har egna lugna låtar (`www/games/yatzy/songs.js`) och egna lugna ljudeffekter (`www/games/yatzy/sounds.js`).
+
 ## Lägga till ett nytt spel
 
 1. Skapa en mapp under `www/games/`.

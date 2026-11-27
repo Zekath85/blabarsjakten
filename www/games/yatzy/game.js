@@ -1,8 +1,10 @@
 import * as Y from './logic.js';
 import { simulateTray, startRotation, DT } from './dice.js';
 import { ART } from '../blabarsjakten/art.js';
-import { SONGS } from '../blabarsjakten/songs.js';
-import { sfx, settings, playClip, stop } from '../../shared/audio.js';
+// Yatzys egna lugna låtar. Valet sparas bara för Yatzy (yatzy-prefs).
+import { SONGS, FIRST_SONG } from './songs.js';
+import { settings, playClip, stop } from '../../shared/audio.js';
+import { sfx } from './sounds.js'; // Yatzys egna, lugnare ljud
 import { avatar, robot, OPTIONS, DEFAULT_LOOKS } from '../../shared/avatar.js';
 import { confirmQuit, ask } from '../../shared/dialog.js';
 import { music } from '../../shared/music.js';
@@ -18,13 +20,20 @@ const HELP_NAME = { none: 'Ingen hjälp', some: 'Lite hjälp', lots: 'Mycket hj�
 const PLAYER_COLORS = ['#e53935', '#1e88e5', '#43a047', '#8e24aa'];
 const STAR = '<svg viewBox="0 0 40 40" aria-hidden="true"><path d="M20 3 L25 14 L37 15.5 L28 24 L30.5 36 L20 30 L9.5 36 L12 24 L3 15.5 L15 14Z" fill="#ffd54f" stroke="#c98a00" stroke-width="2.5" stroke-linejoin="round"/></svg>';
 
+// Berättaren: korta repliker, i kö så att de aldrig pratar i munnen på varandra. Spelet väntar inte på rösten. Går att slå av (dice).
+// Texterna ska vara samma som i scripts/make-voices-eleven.mjs --yatzy (som läser dem härifrån).
+const LINES = { turn: 'Din tur! Skaka bägaren.', two: 'Två kast kvar.', last: 'Sista kastet!', pick: 'Välj en rad.', yatzy: 'Yatzy!', house: 'Kåk!', large: 'Stor stege!', small: 'Liten stege!', four: 'Fyrtal!', bonus: 'Bonus! Femtio poäng.', strike: 'Vill du stryka raden?', bot: 'Nu är det Robos tur.', win: 'Grattis till vinnaren!', tie: 'Det blev lika!' };
+let voiceChain = Promise.resolve();
+const say = key => { voiceChain = voiceChain.then(() => Promise.race([playClip(`voice/${key}.mp3`, LINES[key], undefined, 'dice'), wait(4500)])); };
+
 // ---------- Val som sparas ----------
 let count = 2, names = ['Spelare 1', 'Spelare 2', 'Spelare 3', 'Spelare 4'], looks = DEFAULT_LOOKS.map(l => ({ ...l })), bot = false, botName = 'Robo';
-let level = 'normal', target = 1, help = ['some', 'some', 'some', 'some']; // help: per plats (spelare 1–4)
+let level = 'normal', target = 1, song = FIRST_SONG, help = ['some', 'some', 'some', 'some']; // help: per plats (spelare 1–4)
 try { ({ names, looks, bot, botName, count } = { names, looks, bot, botName, count, ...JSON.parse(localStorage.getItem('bbj-players') || '{}') }); } catch {}
-try { ({ level, target, help } = { level, target, help, ...JSON.parse(localStorage.getItem('yatzy-prefs') || '{}') }); } catch {}
+try { ({ level, target, help, song } = { level, target, help, song, ...JSON.parse(localStorage.getItem('yatzy-prefs') || '{}') }); } catch {}
 if (![1, 2, 3].includes(target)) target = 1;
-const savePrefs = () => { try { localStorage.setItem('yatzy-prefs', JSON.stringify({ level, target, help })); } catch {} };
+if (!SONGS[song]) song = FIRST_SONG;
+const savePrefs = () => { try { localStorage.setItem('yatzy-prefs', JSON.stringify({ level, target, help, song })); } catch {} };
 // Namn och figurer delas med de andra spelen (samma nyckel). Vi lägger bara till våra värden, så inget där försvinner.
 const savePlayers = () => { try { localStorage.setItem('bbj-players', JSON.stringify({ ...JSON.parse(localStorage.getItem('bbj-players') || '{}'), names, looks, count, bot, botName })); } catch {} };
 const lineup = () => (bot
@@ -197,7 +206,7 @@ async function onRowTap(id) {
   const value = Y.score(id, dice);
   if (value === 0) {
     busy = true;
-    const yes = await ask(`Stryka ${Y.ROWS.find(r => r.id === id).name}?`, 'Raden får noll poäng.', 'voice/strike.mp3', 'Vill du stryka raden?');
+    const yes = await ask(`Stryka ${Y.ROWS.find(r => r.id === id).name}?`, 'Raden får noll poäng.', 'voice/strike.mp3', LINES.strike);
     busy = false;
     if (!yes) return;
   }
@@ -220,7 +229,7 @@ async function commitRow(id) {
     for (let k = 1; k <= 12; k++) { val.textContent = Math.round((value * k) / 12); await wait(30); }
   }
   value > 0 ? sfx.good() : sfx.bad();
-  if (!bonusBefore && Y.bonus(game.sheets[who])) { sfx.six(); }
+  if (!bonusBefore && Y.bonus(game.sheets[who])) { sfx.six(); say('bonus'); }
   game.current = cur;
   renderScores();
   await wait(700);
@@ -257,7 +266,7 @@ function start() {
 $('#startBtn').onclick = start;
 // Gemensamt för ny match och fortsatt match.
 function beginPlay() {
-  music.play(SONGS[settings.get('song')] || SONGS.theme);
+  music.play(SONGS[song]);
   $('#previewActions').hidden = true;
   $('#turnbar').hidden = false;
   show('play');
@@ -273,6 +282,7 @@ async function startTurn() {
   const sh = $('#sheet');
   sh.classList.remove('flip'); void sh.offsetWidth; sh.classList.add('flip'); // bladet vänds till nästa spelare
   turnBanner();
+  say(isBot() ? 'bot' : 'turn');
   if (isBot()) return botTurn();
   await wait(settings.get('calm') ? 300 : 1000);
   if (state === 'turn' && !isBot() && !thrown()) openTray();
@@ -357,6 +367,7 @@ function openTray() {
   $('#felt').innerHTML = '';
   resetCup();
   $('#trayHint').textContent = rollsLeft === 3 ? 'Skaka bägaren!' : rollsLeft === 1 ? 'Sista kastet!' : 'Skaka igen!';
+  if (!isBot() && rollsLeft < 3) say(rollsLeft === 1 ? 'last' : 'two');
   $('#throwBtn').disabled = isBot();
   renderTurnbar();
 }
@@ -486,6 +497,7 @@ async function throwDice(power) {
   closeTray();
   busy = false;
   renderTurnbar(); renderSheet(game.current);
+  if (rollsLeft === 0 && !isBot()) say('pick');
 }
 
 // Firande när tärningarna har landat: Yatzy, stege, kåk och fyrtal.
@@ -493,13 +505,14 @@ async function celebrate(wasClose) {
   const free = id => !(id in game.sheets[game.current]);
   if (Y.score('yatzy', dice) > 0) {
     call('Yatzy!', 'big');
+    say('yatzy');
     sfx.six(); setTimeout(() => sfx.win(), 250);
     if (!settings.get('calm')) { fireworks(2600); document.body.classList.remove('quake'); void document.body.offsetWidth; document.body.classList.add('quake'); }
     return wait(1400);
   }
   if (wasClose) sfx.almost();
   const best = [['large', 'Stor stege!'], ['small', 'Liten stege!'], ['house', 'Kåk!'], ['four', 'Fyrtal!']].find(([id]) => free(id) && Y.score(id, dice) > 0);
-  if (best) { call(best[1]); sfx.good(); return wait(700); }
+  if (best) { call(best[1]); say(best[0]); sfx.good(); return wait(700); }
 }
 function call(text, cls = '') {
   const el = document.createElement('div');
@@ -594,6 +607,7 @@ function endMatch() {
   $('#podium').hidden = false;
   if (!settings.get('calm')) fireworks(4000);
   sfx.win();
+  say(winners.length > 1 ? 'tie' : 'win');
   // Knapparna är gråa en sekund, så att ett oväntat tryck inte startar en ny match av misstag.
   const btns = document.querySelectorAll('#podium .btn');
   btns.forEach(b => (b.disabled = true));
@@ -639,10 +653,10 @@ const soundIcon = () => ($('#soundBtn').innerHTML = `<svg viewBox="0 0 40 40"><p
   ['sfx', 'music'].some(settings.get)
     ? '<path d="M27 14 Q31 20 27 26 M31 10 Q38 20 31 30" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round"/>'
     : '<path d="M28 15 L36 25 M36 15 L28 25" stroke="#ff8a80" stroke-width="3.5" stroke-linecap="round"/>'}</svg>`);
-const SONG_ICON = { theme: ART.basket, walk: ART.tree, lullaby: ART.owl, fox: ART.fox };
+const SONG_ICON = { kvall: miniDie(1), regn: miniDie(2), tradgard: miniDie(3), fyren: miniDie(4) };
 function renderSongs() {
   $('#songList').innerHTML = Object.entries(SONGS).map(([key, s]) =>
-    `<button class="song ${key === settings.get('song') ? 'on' : ''}" data-song="${key}">${SONG_ICON[key] || ''}<small>${s.name}</small></button>`).join('');
+    `<button class="song ${key === song ? 'on' : ''}" data-song="${key}">${SONG_ICON[key] || ''}<small>${s.name}</small></button>`).join('');
 }
 function closeSoundPanel() {
   $('#soundPanel').hidden = true;
@@ -660,7 +674,7 @@ $('#soundBtn').onclick = () => {
 $('#songList').onclick = e => {
   const key = e.target.closest('.song')?.dataset.song;
   if (!key) return;
-  settings.set('song', key);
+  song = key; savePrefs();
   if (!settings.get('music')) settings.set('music', true);
   $('#soundPanel').querySelector('[data-pref="music"]').checked = true;
   music.play(SONGS[key]);
