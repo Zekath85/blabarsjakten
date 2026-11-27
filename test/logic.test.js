@@ -361,3 +361,35 @@ import * as M from '../www/games/memory/logic.js';
   for (let k = 0; k < 300; k++) { const [e, h] = play('large', ['easy', 'hard']); easy += e; hard += h; }
   assert.ok(hard > easy * 1.3, `svår slår lätt (${hard} mot ${easy})`);
 }
+
+// ---------- Yatzy ----------
+import * as Y from '../www/games/yatzy/logic.js';
+{
+  assert.equal(Y.ROWS.length, 15);
+  assert.equal(Y.score('fives', [5,5,5,5,5]), 25);
+  assert.equal(Y.score('pair', [3,3,5,5,1]), 10);
+  assert.equal(Y.score('twoPairs', [3,3,5,5,1]), 16);
+  assert.equal(Y.score('twoPairs', [4,4,4,4,4]), 0);
+  assert.equal(Y.score('three', [4,4,4,4,4]), 12);
+  assert.equal(Y.score('four', [4,4,4,4,2]), 16);
+  assert.equal(Y.score('small', [5,3,1,2,4]), 15);
+  assert.equal(Y.score('small', [2,3,4,5,6]), 0);
+  assert.equal(Y.score('large', [6,2,3,5,4]), 20);
+  assert.equal(Y.score('house', [2,2,3,3,3]), 13);
+  assert.equal(Y.score('house', [3,3,3,3,3]), 0);
+  assert.equal(Y.score('chance', [1,2,3,4,6]), 16);
+  assert.equal(Y.score('yatzy', [6,6,6,6,6]), 50);
+  assert.equal(Y.score('yatzy', [6,6,6,6,5]), 0);
+  const full = { ones: 3, twos: 6, threes: 9, fours: 12, fives: 15, sixes: 18 };
+  assert.equal(Y.upperSum(full), 63); assert.equal(Y.bonus(full), 50); assert.equal(Y.total(full), 113);
+  assert.equal(Y.bonus({ ...full, sixes: 12 }), 0);
+  const g = Y.createGame([{ name: 'A', help: 'none' }, { name: 'B', help: 'lots' }], 2);
+  assert.equal(Y.fill(g, 'chance', [1,1,1,1,2]), 6); assert.equal(g.current, 1);
+  assert.throws(() => { g.current = 0; Y.fill(g, 'chance', [1,1,1,1,1]); });
+  assert.deepEqual(Y.fromSave(JSON.parse(JSON.stringify(Y.toSave(g)))), g);
+  // Matchen är slut när alla har fyllt 15 rader. Lika poäng ger delad placering.
+  const h = Y.createGame([{ name: 'A' }, { name: 'B' }]);
+  for (let i = 0; i < 30; i++) Y.fill(h, Y.left(h.sheets[h.current])[0], [1,2,3,4,5]);
+  assert.ok(Y.matchOver(h)); assert.deepEqual(Y.ranking(h), [1, 1]);
+  console.log('Yatzy OK');
+}
